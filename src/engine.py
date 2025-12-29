@@ -40,8 +40,8 @@ EMOTION_SETTINGS = {
         "align": 0.03,
         "cohesion": 0.003,
         "separation": 0.1,
-        "focal": 0.01,
-        "neg": 0.05
+        "focal": 0.02,
+        "neg": 0.08
     },
     "anxiety": {
         "align": 0.08,
@@ -185,11 +185,11 @@ class Agent:
 
     def update(self):
         self.pos += self.vel
-        if self.vel.length() > 4:
-            self.vel.scale_to_length(4)
+        if self.vel.length() > 2:
+            self.vel.scale_to_length(2)
         self.edges()
         self.history.append(self.pos.copy())
-        if len(self.history) > 20:
+        if len(self.history) > 70:
             self.history.pop(0)
 
     def edges(self):
@@ -200,22 +200,22 @@ class Agent:
 
     def draw(self, screen):
         for p in self.history:
-            pygame.draw.circle(screen, self.color, (int(p.x), int(p.y)), 2)
-        pygame.draw.circle(screen, self.color, (int(self.pos.x), int(self.pos.y)), 3)
+            pygame.draw.circle(screen, self.color, (int(p.x), int(p.y)), 4)
+        pygame.draw.circle(screen, self.color, (int(self.pos.x), int(self.pos.y)), 6)
         angle_step = 360 / ROTATION_SYMMETRY
         for i in range(1, ROTATION_SYMMETRY):
             angle = angle_step * i
             rx, ry = rotate_point(self.pos.x, self.pos.y, CENTER_X, CENTER_Y, angle)
-            pygame.draw.circle(screen, self.color, (int(rx), int(ry)), 3)
+            pygame.draw.circle(screen, self.color, (int(rx), int(ry)), 6)
         hx = WIDTH - self.pos.x
         hy = self.pos.y
-        pygame.draw.circle(screen, self.color, (int(hx), int(hy)), 2)
+        pygame.draw.circle(screen, self.color, (int(hx), int(hy)), 4)
         vx = self.pos.x
         vy = HEIGHT - self.pos.y
-        pygame.draw.circle(screen, self.color, (int(vx), int(vy)), 2)
+        pygame.draw.circle(screen, self.color, (int(vx), int(vy)), 4)
         dx = WIDTH - self.pos.x
         dy = HEIGHT - self.pos.y
-        pygame.draw.circle(screen, self.color, (int(dx), int(dy)), 2)
+        pygame.draw.circle(screen, self.color, (int(dx), int(dy)), 4)
     
     def apply_behaviors(self, agents, time=None):
         neighbors = get_neighbors(self, agents, 60)

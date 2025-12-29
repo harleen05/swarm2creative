@@ -73,8 +73,14 @@ while running:
                 print("Emotion → JOY")
 
             if event.key == pygame.K_s:
-                save_next = True
-                print("Saving…")
+                save_count += 1
+                filename = f"{ART_STYLE}_{save_count:03}.png"
+                filepath = os.path.join(SAVE_DIR, filename)
+
+                surface_to_save = render_surface if ART_STYLE == "geometric" else screen
+                pygame.image.save(surface_to_save, filepath)
+
+                print(f"🎨 Saved → {filepath}")
             
             if event.key == pygame.K_g:
                 ART_STYLE = "geometric"
@@ -96,7 +102,7 @@ while running:
             p1 = agent.history[-1]
             p2 = agent.history[-2]
             movement_change += p1.distance_to(p2)
-    movement_change /= len(agents)
+        movement_change /= len(agents)
     
     stability_history.append(movement_change)
     if len(stability_history) > STABILITY_WINDOW:
@@ -127,21 +133,8 @@ while running:
     scaled = pygame.transform.smoothscale(render_surface, (WIDTH, HEIGHT))
     screen.blit(scaled, (0,0))
 
-    if save_next:
-        pygame.image.save(render_surface, "art.png")
-        print("Saved Art!")
-        save_next = False
-
     pygame.display.flip()
     clock.tick(80)
     time += 0.005
-    keys = pygame.key.get_pressed()
-    if keys[pygame.K_s]:
-        save_count += 1
-        filename = f"{ART_STYLE}_{save_count:03}.png"
-        filepath = os.path.join(SAVE_DIR, filename)
-        surface_to_save = render_surface if ART_STYLE == "geometric" else screen
-        pygame.image.save(surface_to_save, filepath)
-        print(f"🎨 Saved → {filepath}")
 
 pygame.quit()
