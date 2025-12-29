@@ -1,5 +1,5 @@
 import pygame
-from engine import Agent, WIDTH, HEIGHT
+from engine2 import Agent, WIDTH, HEIGHT
 
 pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
