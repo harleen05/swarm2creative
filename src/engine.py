@@ -8,7 +8,7 @@ FLOW_STRENGTH = 0.25
 
 WIDTH = 800
 HEIGHT = 600
-ART_MODE = "composition"
+ART_MODE = "chaos"
 EMOTION = "calm"
 ROTATION_SYMMETRY = 6
 CENTER_X = WIDTH / 2
@@ -170,6 +170,26 @@ def rotate_point(x, y, cx, cy, angle):
 
     return cx + rx, cy + ry
 
+def shift_color(color, t, emotion):
+    r, g, b = color
+
+    # speed per emotion
+    if emotion == "calm":
+        speed = 0.2
+    elif emotion == "joy":
+        speed = 0.6
+    elif emotion == "anxiety":
+        speed = 1.2
+    else:
+        speed = 0.4
+
+    # smooth sine shift
+    r = max(0, min(255, r + int(20 * math.sin(t * speed + 0))))
+    g = max(0, min(255, g + int(20 * math.sin(t * speed + 2))))
+    b = max(0, min(255, b + int(20 * math.sin(t * speed + 4))))
+
+    return (r, g, b)
+
 class Agent:
     def __init__(self):
         self.pos = pygame.Vector2(
@@ -181,6 +201,8 @@ class Agent:
             random.uniform(-2, 2)
         )
         self.color = random.choice(random_color_palette())
+        self.color_palette = random_color_palette()
+        self.color_index = 0
         self.history = []
 
     def update(self):
@@ -191,6 +213,9 @@ class Agent:
         self.history.append(self.pos.copy())
         if len(self.history) > 70:
             self.history.pop(0)
+        self.color_index = (self.color_index + 0.02) % len(self.color_palette)
+        self.color = self.color_palette[int(self.color_index)]
+
 
     def edges(self):
         if self.pos.x > WIDTH: self.pos.x = 0
@@ -198,24 +223,34 @@ class Agent:
         if self.pos.y > HEIGHT: self.pos.y = 0
         if self.pos.y < 0: self.pos.y = HEIGHT
 
-    def draw(self, screen):
+    def draw(self, screen, time):
         for p in self.history:
-            pygame.draw.circle(screen, self.color, (int(p.x), int(p.y)), 4)
-        pygame.draw.circle(screen, self.color, (int(self.pos.x), int(self.pos.y)), 6)
+            pygame.draw.circle(
+                screen,
+                self.color,
+                (int(p.x), int(p.y)),
+                2
+            )
+        pygame.draw.circle(
+            screen,
+            self.color,
+            (int(self.pos.x), int(self.pos.y)),
+            3
+        )
         angle_step = 360 / ROTATION_SYMMETRY
         for i in range(1, ROTATION_SYMMETRY):
             angle = angle_step * i
             rx, ry = rotate_point(self.pos.x, self.pos.y, CENTER_X, CENTER_Y, angle)
-            pygame.draw.circle(screen, self.color, (int(rx), int(ry)), 6)
+            pygame.draw.circle(screen, self.color, (int(rx), int(ry)), 3)
         hx = WIDTH - self.pos.x
         hy = self.pos.y
-        pygame.draw.circle(screen, self.color, (int(hx), int(hy)), 4)
+        pygame.draw.circle(screen, self.color, (int(hx), int(hy)), 2)
         vx = self.pos.x
         vy = HEIGHT - self.pos.y
-        pygame.draw.circle(screen, self.color, (int(vx), int(vy)), 4)
+        pygame.draw.circle(screen, self.color, (int(vx), int(vy)), 2)
         dx = WIDTH - self.pos.x
         dy = HEIGHT - self.pos.y
-        pygame.draw.circle(screen, self.color, (int(dx), int(dy)), 4)
+        pygame.draw.circle(screen, self.color, (int(dx), int(dy)), 2)
     
     def apply_behaviors(self, agents, time=None):
         neighbors = get_neighbors(self, agents, 60)

@@ -3,7 +3,7 @@ from engine import Agent, WIDTH, HEIGHT
 import engine
 import statistics
 import os
-
+import math
 SAVE_DIR = "artworks"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
@@ -14,6 +14,9 @@ ART_STYLE = "mandala"
 pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.SRCALPHA)
 render_surface = pygame.Surface((EXPORT_WIDTH, EXPORT_HEIGHT), pygame.SRCALPHA)
+screen.fill((0,0,0))
+render_surface.fill((0,0,0))
+pygame.display.flip()
 pygame.display.set_caption("Swarm Engine - Basic Movement")
 clock = pygame.time.Clock()
 save_next = False
@@ -26,14 +29,39 @@ STABILITY_WINDOW = 50
 STABILITY_THRESHOLD = 0.5
 stable_hold_frames = 0
 AUTO_RESUME_AFTER = 100
+bg_color = [0,0,0]
 
 while running:
-    fade_surface = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-    fade_surface.fill((0,0,0,20))
     if ART_STYLE == "geometric":
-        render_surface.blit(fade_surface, (0,0))
+        fade_surface = pygame.Surface((EXPORT_WIDTH, EXPORT_HEIGHT), pygame.SRCALPHA)
+        fade_surface.fill((0, 0, 0, 6))
+        render_surface.blit(fade_surface, (0,1))
     elif ART_STYLE == "mandala":
+        screen.fill((0,0,0))
+        fade_surface = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        fade_surface.fill((0, 0, 0, 12))
         screen.blit(fade_surface, (0,0))
+        glow = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        if engine.EMOTION == "calm":
+            glow_color = (120, 180, 255)
+            pulse_speed = 0.5
+            alpha_base = 18
+        elif engine.EMOTION == "joy":
+            glow_color = (255, 200, 120)
+            pulse_speed = 1.2
+            alpha_base = 26
+        elif engine.EMOTION == "anxiety":
+            glow_color = (255, 120, 120)
+            pulse_speed = 2.0
+            alpha_base = 30
+        else:
+            glow_color = (200,200,255)
+            pulse_speed = 0.8
+            alpha_base = 20
+        pulse = (math.sin(time * pulse_speed) + 1) / 2
+        alpha = int(alpha_base + pulse * 20)
+        glow.fill((*glow_color, alpha))
+        screen.blit(glow, (0,0), special_flags=pygame.BLEND_RGBA_ADD)
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -94,7 +122,7 @@ while running:
         if not pattern_stable:
             agent.apply_behaviors(agents, time)
             agent.update()
-        agent.draw(render_surface)
+            agent.draw(render_surface, time)
 
     movement_change = 0
     for agent in agents:
@@ -134,7 +162,7 @@ while running:
     screen.blit(scaled, (0,0))
 
     pygame.display.flip()
-    clock.tick(80)
+    clock.tick(90)
     time += 0.005
 
 pygame.quit()
