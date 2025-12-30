@@ -13,6 +13,9 @@ EMOTION = "anxiety"
 ROTATION_SYMMETRY = 6
 CENTER_X = WIDTH / 2
 CENTER_Y = HEIGHT / 2
+current_shape = "spiral"
+star_target = None
+star_timer = 0
 
 FOCAL_POINTS = [
     (WIDTH * 0.25, HEIGHT * 0.35),
@@ -37,11 +40,10 @@ NEGATIVE_ZONES = [
 
 EMOTION_SETTINGS = {
     "calm": {
-        "align": 0.03,
-        "cohesion": 0.003,
-        "separation": 0.1,
-        "focal": 0.02,
-        "neg": 0.08
+        "align": 0.05,
+        "cohesion": 0.01,
+        "separation": 0.06,
+        "noise": 0.01
     },
     "anxiety": {
         "align": 0.08,
@@ -172,7 +174,6 @@ def rotate_point(x, y, cx, cy, angle):
 
 def shift_color(color, t, emotion):
     r, g, b = color
-
     # speed per emotion
     if emotion == "calm":
         speed = 0.2
@@ -182,13 +183,60 @@ def shift_color(color, t, emotion):
         speed = 1.2
     else:
         speed = 0.4
-
     # smooth sine shift
     r = max(0, min(255, r + int(20 * math.sin(t * speed + 0))))
     g = max(0, min(255, g + int(20 * math.sin(t * speed + 2))))
     b = max(0, min(255, b + int(20 * math.sin(t * speed + 4))))
-
     return (r, g, b)
+
+def shape_force(agent, t):
+    cx, cy = CENTER_X, CENTER_Y
+    pos = agent.pos
+    vec = pygame.Vector2(0,0)
+    global current_shape
+    global star_target, star_timer
+    if current_shape == "ring":
+        radius = 220 + math.sin(t*0.2)*60
+        angle = t*0.3 + agent.pos.x*0.002
+        target = pygame.Vector2(
+            cx + math.cos(angle) * radius,
+            cy + math.sin(angle) * radius
+        )
+        vec = target - pos
+    elif current_shape == "spiral":
+        r = 80 + t*25
+        angle = t*0.4 + agent.pos.x*0.003
+        target = pygame.Vector2(cx + math.cos(angle)*r,
+                                cy + math.sin(angle)*r)
+        vec = target - pos
+    elif current_shape == "petal":
+        r_base = 200
+        petal_count = 6
+        breathing = 20 * math.sin(t * 0.6)
+        dx = pos.x - cx
+        dy = pos.y - cy
+        angle = math.atan2(dy, dx)
+        r = r_base + breathing + 60 * math.sin(petal_count * angle)
+        target = pygame.Vector2(
+            cx + math.cos(angle) * r,
+            cy + math.sin(angle) * r
+        )
+        vec = target - pos
+
+    elif current_shape == "constellation":
+        if star_target is None:
+            star_target = random.choice(FOCAL_POINTS)
+        star_timer += 1
+        if star_timer > 180:
+            star_target = random.choice(FOCAL_POINTS)
+            star_timer = 0
+        target = pygame.Vector2(*star_target)
+        vec = target - pos
+    elif current_shape == "vortex":
+        dir = pygame.Vector2(cx, cy) - pos
+        dir.rotate_ip(90)
+        vec = dir
+    return vec * 0.005
 
 class Agent:
     def __init__(self):
@@ -207,11 +255,12 @@ class Agent:
 
     def update(self):
         self.pos += self.vel
-        if self.vel.length() > 2:
-            self.vel.scale_to_length(2)
+        self.vel = self.vel.lerp(self.vel.normalize(), 0.1)
+        if self.vel.length() > 1.2:
+            self.vel.scale_to_length(1.2)
         self.edges()
         self.history.append(self.pos.copy())
-        if len(self.history) > 70:
+        if len(self.history) > 120:
             self.history.pop(0)
         self.color_index = (self.color_index + 0.02) % len(self.color_palette)
         self.color = self.color_palette[int(self.color_index)]
@@ -252,7 +301,7 @@ class Agent:
         dy = HEIGHT - self.pos.y
         pygame.draw.circle(screen, self.color, (int(dx), int(dy)), 2)
     
-    def apply_behaviors(self, agents, time=None):
+    def apply_behaviors(self, agents, time=None, pattern_stable=False):
         neighbors = get_neighbors(self, agents, 60)
         if ART_MODE == "calm":
             align_force = alignment(self, neighbors, 0.04)
@@ -293,3 +342,10 @@ class Agent:
             self.vel += separation_force
             self.vel += focus
             self.vel += neg_space
+        if pattern_stable:
+            self.pos += pygame.Vector2(
+                math.sin(time * 0.2) * 0.2,
+                math.cos(time * 0.2) * 0.2
+            )
+        else:
+            self.vel += shape_force(self, time)
