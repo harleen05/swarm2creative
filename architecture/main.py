@@ -4,37 +4,43 @@ import engine
 
 pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Swarm Engine - Basic Movement")
+pygame.display.set_caption("Swarm Engine - Architecture Emergence")
 clock = pygame.time.Clock()
-SHOW_STRUCTURE = False
+
+ANCHOR_THRESHOLD = 6
+ARCHITECTURE_MODE = False
 
 agents = [Agent() for _ in range(50)]
 
 running = True
 while running:
-    if not SHOW_STRUCTURE:
-        screen.fill((0, 0, 0))
+    screen.fill((0, 0, 0))
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-    
+
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_p:
-                from engine import export_architecture
-                export_architecture(agents)
+                engine.export_architecture(agents)
 
-            if event.key == pygame.K_l:
-                SHOW_STRUCTURE = not SHOW_STRUCTURE
-                print("Architecture Mode:", SHOW_STRUCTURE)
+    if not ARCHITECTURE_MODE:
+        for agent in agents:
+            agent.apply_behaviors(agents)
+            agent.update()
+        anchor_count = sum(1 for a in agents if a.is_anchor)
+        if anchor_count >= ANCHOR_THRESHOLD and not ARCHITECTURE_MODE:
+            ARCHITECTURE_MODE = True
+            engine.commit_architecture(agents)
+            print("🏛 Architecture committed")
 
+    else:
+        for agent in agents:
+            agent.update()
+        if ARCHITECTURE_MODE:
+            engine.draw_architecture(screen)
     for agent in agents:
-        agent.apply_behaviors(agents)
-        agent.update()
         agent.draw(screen)
-
-    if SHOW_STRUCTURE:
-        engine.draw_architecture(screen, agents)
 
     pygame.display.flip()
     clock.tick(60)

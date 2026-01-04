@@ -5,7 +5,7 @@ import statistics
 import os
 import math
 
-SAVE_DIR = "art/outputs"
+SAVE_DIR = "outputs"
 os.makedirs(SAVE_DIR, exist_ok=True)
 print("Starting mode =", engine.ART_MODE)
 

@@ -5,6 +5,7 @@ import json
 WIDTH = 800
 HEIGHT = 600
 SHOW_STRUCTURE = False
+STRUCTURAL_EDGES = set()
 
 def get_neighbors(agent, agents, radius):
     neighbors = []
@@ -64,50 +65,6 @@ def separation(agent, neighbors, desired_distance=25, strength=0.15):
 
     return steer
 
-class Agent:
-    def __init__(self):
-        self.pos = pygame.Vector2(
-            random.randint(0, WIDTH),
-            random.randint(0, HEIGHT)
-        )
-        self.vel = pygame.Vector2(
-            random.uniform(-2, 2),
-            random.uniform(-2, 2)
-        )
-        self.path = []
-        self.arch_path = []
-
-    def update(self):
-        self.pos += self.vel
-        if self.vel.length() > 4:
-            self.vel.scale_to_length(4)
-        self.edges()
-        self.path.append((self.pos.x, self.pos.y))
-        if len(self.path) > 500:
-            self.path.pop(0)
-        self.arch_path.append(self.pos.copy())
-        if len(self.arch_path) > 400:
-            self.arch_path.pop(0)
-
-    def edges(self):
-        if self.pos.x > WIDTH: self.pos.x = 0
-        if self.pos.x < 0: self.pos.x = WIDTH
-        if self.pos.y > HEIGHT: self.pos.y = 0
-        if self.pos.y < 0: self.pos.y = HEIGHT
-
-    def draw(self, screen):
-        pygame.draw.circle(screen, (255, 255, 255),
-                           (int(self.pos.x), int(self.pos.y)), 4)
-    
-    def apply_behaviors(self, agents):
-        neighbors = get_neighbors(self, agents, 60)
-        align_force = alignment(self, neighbors)
-        cohesion_force = cohesion(self, neighbors)
-        separation_force = separation(self, neighbors)
-        self.vel += align_force
-        self.vel += cohesion_force
-        self.vel += separation_force
-
 def export_architecture(agents):
     data = {
         "points": [],
@@ -120,36 +77,179 @@ def export_architecture(agents):
         json.dump(data, f, indent=4)
     print("🏛 Exported → architecture_paths.json")
     
-def draw_architecture(screen, agents):
-    for agent in agents:
-        pts = agent.arch_path
-        if len(pts) < 10:
+def draw_architecture(screen):
+    for y in ARCHITECTURE["floors"]:
+        xs = [c.x for c in ARCHITECTURE["columns"]]
+        if len(xs) >= 2:
+            left = min(xs)
+            right = max(xs)
+
+            for y in ARCHITECTURE["floors"]:
+                pygame.draw.line(
+                    screen,
+                    (180,180,200),
+                    (int(left), int(y)),
+                    (int(right), int(y)),
+                    4
+                )
+
+    for c in ARCHITECTURE["columns"]:
+        pygame.draw.rect(
+            screen,
+            (210,210,230),
+            pygame.Rect(int(c.x)-6, 40, 12, HEIGHT-80)
+        )
+    for p1, p2 in ARCHITECTURE["beams"]:
+        pygame.draw.line(
+            screen,
+            (200,200,220),
+            (int(p1.x), int(p1.y)),
+            (int(p2.x), int(p2.y)),
+            3
+        )
+
+def detect_columns(agents, speed_threshold=0.6, min_count=4):
+    columns = []
+    for a in agents:
+        if a.vel.length() < speed_threshold:
+            nearby = [
+                b for b in agents
+                if a.pos.distance_to(b.pos) < 25 and b.vel.length() < speed_threshold
+            ]
+            if len(nearby) >= min_count:
+                columns.append(a.pos)
+    return columns
+
+def anchor_repulsion(agent, agents, radius=80, strength=0.6):
+    force = pygame.Vector2(0,0)
+    for other in agents:
+        if other is agent:
             continue
+        if other.is_anchor:
+            d = agent.pos.distance_to(other.pos)
+            if d < radius and d > 0:
+                diff = agent.pos - other.pos
+                diff.normalize_ip()
+                force += diff * (strength / d)
+    return force
 
-        # 1️⃣ Reduce clutter drastically
-        simplified = pts[::10]
+def too_close_to_anchor(agent, agents, min_dist=120):
+    for other in agents:
+        if other.is_anchor and agent.pos.distance_to(other.pos) < min_dist:
+            return True
+    return False
 
-        # 2️⃣ Smooth using midpoint curve
-        smooth = []
-        for i in range(len(simplified)-1):
-            p1 = simplified[i]
-            p2 = simplified[i+1]
-            mid = (p1 + p2) / 2
-            smooth.append(p1)
-            smooth.append(mid)
+ARCHITECTURE = {
+    "columns": [],
+    "floors": [],
+    "beams": []
+}
+def cluster_columns(columns, radius=60):
+    clusters = []
+    for c in columns:
+        placed = False
+        for cl in clusters:
+            if c.distance_to(cl[0]) < radius:
+                cl.append(c)
+                placed = True
+                break
+        if not placed:
+            clusters.append([c])
+    return clusters
 
-        # 3️⃣ Draw elegant structural beams
-        for i in range(len(smooth)-1):
-            p1 = smooth[i]
-            p2 = smooth[i+1]
+def commit_architecture(agents):
+    ARCHITECTURE["columns"].clear()
+    ARCHITECTURE["floors"].clear()
+    ARCHITECTURE["beams"].clear()
+    for a in agents:
+        if a.is_anchor:
+            raw_columns = [pygame.Vector2(a.pos.x, a.pos.y) for a in agents if a.is_anchor]
+            column_clusters = cluster_columns(raw_columns)
 
-            thickness = max(1, int(i / 40))
-            color = (200, 200, 220)
+            ARCHITECTURE["columns"] = [
+                sum(cluster, pygame.Vector2(0,0)) / len(cluster)
+                for cluster in column_clusters
+            ]
 
-            pygame.draw.line(
-                screen,
-                color,
-                (int(p1.x), int(p1.y)),
-                (int(p2.x), int(p2.y)),
-                thickness
-            )
+    ys = [a.pos.y for a in agents]
+    ys.sort()
+
+    levels = []
+    for y in ys:
+        if not any(abs(y - l) < 25 for l in levels):
+            levels.append(y)
+    for y in levels[:4]:
+        ARCHITECTURE["floors"].append(y)
+    cols = ARCHITECTURE["columns"]
+    for i in range(len(cols)):
+        for j in range(i+1, len(cols)):
+            if abs(cols[i].y - cols[j].y) < 40:
+                ARCHITECTURE["beams"].append((cols[i], cols[j]))
+
+class Agent:
+    def __init__(self):
+        self.pos = pygame.Vector2(
+            random.randint(0, WIDTH),
+            random.randint(0, HEIGHT)
+        )
+        self.vel = pygame.Vector2(
+            random.uniform(-2, 2),
+            random.uniform(-2, 2)
+        )
+        self.path = []
+        self.arch_path = []
+        self.is_anchor = False
+
+    def update(self):
+        self.pos += self.vel
+        if self.vel.length() > 4:
+            self.vel.scale_to_length(4)
+        self.edges()
+        self.path.append((self.pos.x, self.pos.y))
+        if len(self.path) > 500:
+            self.path.pop(0)
+        self.arch_path.append(self.pos.copy())
+        if len(self.arch_path) > 400:
+            self.arch_path.pop(0)
+        if (
+            not self.is_anchor and
+            self.vel.length() < 0.25 and
+            len(self.path) > 200
+        ):
+            self.is_anchor = True
+            self.vel *= 0
+        if (
+            not self.is_anchor and
+            self.vel.length() < 0.25 and
+            len(self.path) > 200 and
+            not too_close_to_anchor(self, agents)
+        ):
+            self.is_anchor = True
+            self.vel *= 0
+
+    def edges(self):
+        if self.pos.x > WIDTH: self.pos.x = 0
+        if self.pos.x < 0: self.pos.x = WIDTH
+        if self.pos.y > HEIGHT: self.pos.y = 0
+        if self.pos.y < 0: self.pos.y = HEIGHT
+
+    def draw(self, screen):
+        pygame.draw.circle(screen, (255, 255, 255),
+                           (int(self.pos.x), int(self.pos.y)), 4)
+    
+    def apply_behaviors(self, agents):
+        if self.is_anchor:
+            self.vel *= 0
+            return
+
+        neighbors = get_neighbors(self, agents, 60)
+        self.vel += alignment(self, neighbors)
+        self.vel += cohesion(self, neighbors)
+        self.vel += separation(self, neighbors)
+        for other in agents:
+            if other.is_anchor:
+                d = self.pos.distance_to(other.pos)
+                if 0 < d < 120:
+                    diff = self.pos - other.pos
+                    diff.normalize_ip()
+                    self.vel += diff * (0.3 / d)
