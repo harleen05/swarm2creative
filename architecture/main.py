@@ -14,12 +14,12 @@ agents = [Agent() for _ in range(50)]
 
 running = True
 while running:
-    screen.fill((0, 0, 0))
+    if not ARCHITECTURE_MODE:
+        screen.fill((0, 0, 0))
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_p:
                 engine.export_architecture(agents)
@@ -27,18 +27,19 @@ while running:
     if not ARCHITECTURE_MODE:
         for agent in agents:
             agent.apply_behaviors(agents)
-            agent.update()
+            agent.update(agents)
+
         anchor_count = sum(1 for a in agents if a.is_anchor)
-        if anchor_count >= ANCHOR_THRESHOLD and not ARCHITECTURE_MODE:
+        if anchor_count >= ANCHOR_THRESHOLD:
             ARCHITECTURE_MODE = True
             engine.commit_architecture(agents)
             print("🏛 Architecture committed")
 
     else:
         for agent in agents:
-            agent.update()
-        if ARCHITECTURE_MODE:
-            engine.draw_architecture(screen)
+            agent.update(agents)
+        engine.draw_architecture(screen)
+
     for agent in agents:
         agent.draw(screen)
 

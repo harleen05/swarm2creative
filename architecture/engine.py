@@ -6,6 +6,7 @@ WIDTH = 800
 HEIGHT = 600
 SHOW_STRUCTURE = False
 STRUCTURAL_EDGES = set()
+ARCHITECTURE_MODE = False
 
 def get_neighbors(agent, agents, radius):
     neighbors = []
@@ -78,27 +79,58 @@ def export_architecture(agents):
     print("🏛 Exported → architecture_paths.json")
     
 def draw_architecture(screen):
-    for y in ARCHITECTURE["floors"]:
-        xs = [c.x for c in ARCHITECTURE["columns"]]
-        if len(xs) >= 2:
-            left = min(xs)
-            right = max(xs)
+    xs = [c.x for c in ARCHITECTURE["columns"]]
+    if len(xs) >= 2:
+        left = min(xs)
+        right = max(xs)
 
-            for y in ARCHITECTURE["floors"]:
-                pygame.draw.line(
-                    screen,
-                    (180,180,200),
-                    (int(left), int(y)),
-                    (int(right), int(y)),
-                    4
-                )
+        for y in ARCHITECTURE["floors"]:
+            pygame.draw.line(
+                screen,
+                (180,180,200),
+                (int(left), int(y)),
+                (int(right), int(y)),
+                4
+            )
 
-    for c in ARCHITECTURE["columns"]:
+    for c in ARCHITECTURE["primary_columns"]:
         pygame.draw.rect(
             screen,
-            (210,210,230),
-            pygame.Rect(int(c.x)-6, 40, 12, HEIGHT-80)
+            (210,210,225),
+            pygame.Rect(int(c.x-8), int(c.y-180), 16, 360)
         )
+
+    for c in ARCHITECTURE["secondary_columns"]:
+        pygame.draw.rect(
+            screen,
+            (170,170,190),
+            pygame.Rect(int(c.x-4), int(c.y-140), 8, 280)
+        )
+    cols = ARCHITECTURE["primary_columns"]
+    for i in range(len(cols)-1):
+        c1 = cols[i]
+        c2 = cols[i+1]
+        for y in ARCHITECTURE["floors"]:
+            pygame.draw.line(
+                screen,
+                (190,190,210),
+                (int(c1.x), int(y)),
+                (int(c2.x), int(y)),
+                3
+            )
+    core = ARCHITECTURE.get("core")
+    if core:
+        pygame.draw.rect(
+            screen,
+            (160,160,180),
+            pygame.Rect(
+                int(core.x - 18),
+                int(HEIGHT * 0.2),
+                36,
+                int(HEIGHT * 0.6)
+            )
+        )
+
     for p1, p2 in ARCHITECTURE["beams"]:
         pygame.draw.line(
             screen,
@@ -141,9 +173,13 @@ def too_close_to_anchor(agent, agents, min_dist=120):
 
 ARCHITECTURE = {
     "columns": [],
+    "primary_columns": [],
+    "secondary_columns": [],
     "floors": [],
-    "beams": []
+    "beams": [],
+    "core": None
 }
+
 def cluster_columns(columns, radius=60):
     clusters = []
     for c in columns:
@@ -158,9 +194,6 @@ def cluster_columns(columns, radius=60):
     return clusters
 
 def commit_architecture(agents):
-    ARCHITECTURE["columns"].clear()
-    ARCHITECTURE["floors"].clear()
-    ARCHITECTURE["beams"].clear()
     for a in agents:
         if a.is_anchor:
             raw_columns = [pygame.Vector2(a.pos.x, a.pos.y) for a in agents if a.is_anchor]
@@ -171,8 +204,22 @@ def commit_architecture(agents):
                 for cluster in column_clusters
             ]
 
+    for c in ARCHITECTURE["columns"]:
+        if c.y > HEIGHT * 0.4:
+            ARCHITECTURE["primary_columns"].append(c)
+        else:
+            ARCHITECTURE["secondary_columns"].append(c)
+    
     ys = [a.pos.y for a in agents]
     ys.sort()
+    
+    if ARCHITECTURE["primary_columns"]:
+        cx = WIDTH / 2
+        core = min(
+            ARCHITECTURE["primary_columns"],
+            key=lambda c: abs(c.x - cx)
+        )
+        ARCHITECTURE["core"] = core
 
     levels = []
     for y in ys:
@@ -200,7 +247,7 @@ class Agent:
         self.arch_path = []
         self.is_anchor = False
 
-    def update(self):
+    def update(self, agents):
         self.pos += self.vel
         if self.vel.length() > 4:
             self.vel.scale_to_length(4)
@@ -238,6 +285,10 @@ class Agent:
                            (int(self.pos.x), int(self.pos.y)), 4)
     
     def apply_behaviors(self, agents):
+        if ARCHITECTURE_MODE:
+            self.vel *= 0.92
+            return
+
         if self.is_anchor:
             self.vel *= 0
             return
