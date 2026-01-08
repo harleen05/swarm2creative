@@ -40,6 +40,12 @@ while running:
             engine.ARCHITECTURE_MODE = True
             ARCH_TIME = pygame.time.get_ticks()
             print("🏛 Architecture committed → circulation started")
+        if (
+            engine.ARCHITECTURE_MODE
+            and pygame.time.get_ticks() % 4000 < 16
+        ):
+            engine.evolve_rooms()
+            engine.decay_room_memory()
 
     else:
         for agent in agents:

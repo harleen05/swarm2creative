@@ -649,6 +649,66 @@ def door_slow_zone(agent, radius=14):
         if agent.pos.distance_to(d["pos"]) < radius:
             agent.vel *= 0.75
 
+def room_behavior_force(agent):
+    force = pygame.Vector2(0, 0)
+    for room in ARCHITECTURE["rooms"]:
+        if not room.inflate(-6, -6).collidepoint(agent.pos):
+            continue
+        key = (room.x, room.y, room.w, room.h)
+        rtype = ROOM_TYPES.get(key, "public")
+        center = pygame.Vector2(room.center)
+        v = center - agent.pos
+        if v.length_squared() == 0:
+            continue
+        if rtype == "public":
+            force += v.normalize() * 0.08 
+        elif rtype == "private":
+            force -= v.normalize() * 0.06
+        elif rtype == "service":
+            force += agent.vel.normalize() * 0.12
+    return force
+
+def private_room_density_limit(agent, max_agents=3):
+    for room in ARCHITECTURE["rooms"]:
+        key = (room.x, room.y, room.w, room.h)
+        if ROOM_TYPES.get(key) != "private":
+            continue
+
+        if room.collidepoint(agent.pos):
+            count = sum(
+                1 for a in ARCHITECTURE["agents"]
+                if room.collidepoint(a.pos)
+            )
+            if count > max_agents:
+                agent.vel *= 0.6
+
+def evolve_rooms(
+    min_age=300,
+    promote_hits=140,
+    demote_hits=30,
+    kill_hits=8
+):
+    for room in ARCHITECTURE["rooms"][:]:
+        key = (room.x, room.y, room.w, room.h)
+        age = ROOM_AGE.get(key, 0)
+        hits = ROOM_HITS.get(key, 0)
+        rtype = ROOM_TYPES.get(key, "public")
+        if age < min_age:
+            continue
+        if hits >= promote_hits:
+            ROOM_TYPES[key] = "public"
+        elif hits <= demote_hits and rtype == "public":
+            ROOM_TYPES[key] = "service"
+        elif hits <= kill_hits and rtype != "service":
+            ARCHITECTURE["rooms"].remove(room)
+            ROOM_TYPES.pop(key, None)
+            ROOM_HITS.pop(key, None)
+            ROOM_AGE.pop(key, None)
+
+def decay_room_memory(rate=0.995):
+    for k in ROOM_HITS:
+        ROOM_HITS[k] *= rate
+
 class Agent:
     def __init__(self):
         self.pos = pygame.Vector2(
@@ -662,6 +722,7 @@ class Agent:
         self.path = []
         self.arch_path = []
         self.is_anchor = False
+        self.last_room = None
 
     def update(self, agents):
         self.pos += self.vel
@@ -692,6 +753,9 @@ class Agent:
         if ARCHITECTURE_MODE:
             record_wall_crossing(self)
             record_room_usage(self)
+        for room in ARCHITECTURE["rooms"]:
+            if room.collidepoint(self.pos):
+                self.last_room = room
 
     def edges(self):
         if self.pos.x > WIDTH: self.pos.x = 0
@@ -713,12 +777,14 @@ class Agent:
             self.vel += door_attraction(self) * 0.6
             self.vel += door_wrong_side_repulsion(self)
             self.vel += column_repulsion(self)
+            self.vel += room_behavior_force(self)
 
             door_snap(self)
             junction_damping(self)
             wall_velocity_correction(self)
             wall_position_correction(self)
             door_clearance(self)
+            private_room_density_limit(self)
 
             for room in ARCHITECTURE["rooms"]:
                 key = (room.x, room.y, room.w, room.h)
