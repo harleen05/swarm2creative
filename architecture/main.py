@@ -11,7 +11,6 @@ ANCHOR_THRESHOLD = 12
 agents = [Agent() for _ in range(50)]
 ARCHITECTURE_COMMITTED = False
 ARCH_TIME = pygame.time.get_ticks()
-
 running = True
 
 while running:
@@ -35,7 +34,6 @@ while running:
             ARCHITECTURE_COMMITTED = True
 
             engine.commit_architecture(agents)
-            engine.detect_doors(agents)
             architecture_surface = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
             engine.draw_architecture(architecture_surface)
 

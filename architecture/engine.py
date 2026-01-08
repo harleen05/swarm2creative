@@ -11,6 +11,7 @@ ARCH_COMMITTED = False
 WALL_HITS = {}
 ROOM_HITS = {}
 ROOM_AGE = {}
+ROOM_TYPES = {}
 
 def get_neighbors(agent, agents, radius):
     neighbors = []
@@ -147,19 +148,33 @@ def draw_architecture(screen):
         )
     for room in ARCHITECTURE.get("rooms", []):
         key = (room.x, room.y, room.w, room.h)
-        heat = min(255, ROOM_HITS.get(key, 0))
-        color = (80 + heat//2, 80, 140)
+        rtype = ROOM_TYPES.get(key, "public")
+
+        if rtype == "public":
+            color = (90, 110, 180)
+        elif rtype == "private":
+            color = (140, 90, 120)
+        else:
+            color = (90, 140, 120)
 
         pygame.draw.rect(screen, color, room, 2)
 
     for d in ARCHITECTURE["doors"]:
-        pygame.draw.line(
-            screen,
-            (0,0,0),
-            (int(d.x - 12), int(d.y)),
-            (int(d.x + 12), int(d.y)),
-            6
-        )
+        pos = d["pos"]
+        n = d["normal"]
+
+        if abs(n.x) > abs(n.y):  # vertical wall
+            pygame.draw.line(
+                screen, (0,0,0),
+                (int(pos.x), int(pos.y - 10)),
+                (int(pos.x), int(pos.y + 10)), 6
+            )
+        else:  # horizontal wall
+            pygame.draw.line(
+                screen, (0,0,0),
+                (int(pos.x - 10), int(pos.y)),
+                (int(pos.x + 10), int(pos.y)), 6
+            )
 
 def detect_columns(agents, speed_threshold=0.6, min_count=4):
     columns = []
@@ -304,14 +319,17 @@ def commit_architecture(agents):
             width = abs(c2.x - c1.x)
             height = abs(y2 - y1)
             if 60 < width < 220 and 50 < height < 180:
-                ARCHITECTURE["rooms"].append(
-                    pygame.Rect(
-                        int(c1.x + 10),
-                        int(y1 + 10),
-                        int(width - 20),
-                        int(height - 20)
-                    )
+                room = pygame.Rect(
+                    int(c1.x + 10),
+                    int(y1 + 10),
+                    int(width - 20),
+                    int(height - 20)
                 )
+                ARCHITECTURE["rooms"].append(room)
+
+                key = (room.x, room.y, room.w, room.h)
+                ROOM_TYPES[key] = random.choice(["public", "private", "service"])
+
     generate_doors_from_hits()
     ARCHITECTURE["walls"] = []
 
@@ -386,25 +404,53 @@ def corridor_force(agent):
             force.x += 0.35 * direction
     return force
 
-def detect_doors(agents):
+def generate_doors_from_hits(
+    max_doors_per_room=2,
+    threshold=12,
+    corner_clearance=18,
+    column_clearance=22
+):
     doors = []
-    for y in ARCHITECTURE["floors"]:
-        hits = [a for a in agents if abs(a.pos.y - y) < 10]
-        if len(hits) >= 4:
-            x = sum(a.pos.x for a in hits) / len(hits)
-            doors.append(pygame.Vector2(x, y))
-    ARCHITECTURE["doors"] = doors
-
-def generate_doors_from_hits(threshold=12):
-    doors = []
-
-    for key, hits in WALL_HITS.items():
+    for room in ARCHITECTURE["rooms"]:
+        key = (room.x, room.y, room.w, room.h)
+        hits = WALL_HITS.get(key, [])
         if len(hits) < threshold:
             continue
-
-        avg = sum(hits, pygame.Vector2(0,0)) / len(hits)
-        doors.append(avg)
-
+        walls = [
+            (pygame.Vector2(room.left, room.top), pygame.Vector2(room.right, room.top)),
+            (pygame.Vector2(room.left, room.bottom), pygame.Vector2(room.right, room.bottom)),
+            (pygame.Vector2(room.left, room.top), pygame.Vector2(room.left, room.bottom)),
+            (pygame.Vector2(room.right, room.top), pygame.Vector2(room.right, room.bottom))
+        ]
+        wall_scores = []
+        for a, b in walls:
+            score = 0
+            for h in hits:
+                _, d = point_to_segment_distance(h, a, b)
+                if d < 12:
+                    score += 1
+            wall_scores.append((score, a, b))
+        wall_scores.sort(reverse=True, key=lambda x: x[0])
+        used = 0
+        for score, a, b in wall_scores:
+            if score < threshold or used >= max_doors_per_room:
+                continue
+            avg = sum(hits, pygame.Vector2(0, 0)) / len(hits)
+            ab = b - a
+            t = max(0.1, min(0.9, (avg - a).dot(ab) / ab.length_squared()))
+            pos = a + ab * t
+            if pos.distance_to(a) < corner_clearance or pos.distance_to(b) < corner_clearance:
+                continue
+            if any(pos.distance_to(c) < column_clearance for c in ARCHITECTURE["primary_columns"]):
+                continue
+            normal = (b - a).normalize().rotate(90)
+            doors.append({
+                "pos": pos,
+                "room": key,
+                "wall": (a, b),
+                "normal": normal
+            })
+            used += 1
     ARCHITECTURE["doors"] = doors
 
 def record_wall_crossing(agent):
@@ -420,7 +466,7 @@ def record_wall_crossing(agent):
             WALL_HITS[key].append(agent.pos.copy())
 
 def draw_wall_with_doors(screen, y, x1, x2, thickness=4):
-    doors = [d for d in ARCHITECTURE["doors"] if abs(d.y - y) < 8]
+    doors = [d["pos"] for d in ARCHITECTURE["doors"] if abs(d["pos"].y - y) < 8]
     doors.sort(key=lambda d: d.x)
 
     segments = []
@@ -496,19 +542,30 @@ def point_to_segment_distance(p, a, b):
     return (p - closest), (p - closest).length()
 
 def door_attraction(agent):
-    force = pygame.Vector2(0,0)
+    force = pygame.Vector2(0, 0)
     for d in ARCHITECTURE["doors"]:
-        for y in ARCHITECTURE.get("primary_floors", []):
-            if abs(d.y - y) < 6:
-                v = d - agent.pos
-                if v.length_squared() > 0:
-                    force += v.normalize() * 0.35
+        pos = d["pos"]
+        normal = d["normal"]
+        room_type = ROOM_TYPES.get(d["room"], "public")
+        v = pos - agent.pos
+        if v.length_squared() == 0:
+            continue
+        approach = v.normalize().dot(-normal)
+        if approach < 0.25:
+            continue
+        if room_type == "public":
+            strength = 0.25
+        elif room_type == "private":
+            strength = 0.06
+        else:
+            strength = 0.14
+        force += v.normalize() * strength * approach
     return force
 
 def door_clearance(agent, push=0.6):
     for d in ARCHITECTURE["doors"]:
         if agent.pos.distance_to(d) < 10:
-            diff = agent.pos - d
+            diff = agent.pos - d["pos"]
             if diff.length_squared() > 0:
                 agent.vel += diff.normalize() * push
 
@@ -525,7 +582,7 @@ def wall_slide_force(agent, strength=0.35):
 def door_snap(agent, strength=0.25):
     for d in ARCHITECTURE["doors"]:
         if agent.pos.distance_to(d) < 22:
-            dir = d - agent.pos
+            dir = d["pos"] - agent.pos
             if dir.length() > 0:
                 dir.normalize_ip()
                 agent.vel += dir * strength
@@ -557,7 +614,7 @@ def record_room_usage(agent):
             ROOM_HITS[key] = ROOM_HITS.get(key, 0) + 1
             ROOM_AGE[key] = ROOM_AGE.get(key, 0) + 1
 
-def prune_dead_rooms(min_hits=80, min_age=240):
+def prune_dead_rooms(min_hits=40, min_age=240):
     alive = []
     for r in ARCHITECTURE["rooms"]:
         key = (r.x, r.y, r.w, r.h)
@@ -574,6 +631,23 @@ def column_repulsion(agent, strength=1.4, radius=26):
         if 0 < d < radius:
             force += (agent.pos - c).normalize() * (strength / d)
     return force
+
+def door_wrong_side_repulsion(agent, strength=0.35):
+    force = pygame.Vector2(0, 0)
+    for d in ARCHITECTURE["doors"]:
+        pos = d["pos"]
+        normal = d["normal"]
+        v = agent.pos - pos
+        if v.length_squared() == 0:
+            continue
+        if v.normalize().dot(normal) > 0.2:
+            force += v.normalize() * strength
+    return force
+
+def door_slow_zone(agent, radius=14):
+    for d in ARCHITECTURE["doors"]:
+        if agent.pos.distance_to(d["pos"]) < radius:
+            agent.vel *= 0.75
 
 class Agent:
     def __init__(self):
@@ -637,20 +711,35 @@ class Agent:
             self.vel += wall_repulsion(self)
             self.vel += wall_slide_force(self)
             self.vel += door_attraction(self) * 0.6
+            self.vel += door_wrong_side_repulsion(self)
             self.vel += column_repulsion(self)
+
             door_snap(self)
             junction_damping(self)
             wall_velocity_correction(self)
             wall_position_correction(self)
             door_clearance(self)
+
+            for room in ARCHITECTURE["rooms"]:
+                key = (room.x, room.y, room.w, room.h)
+                if room.inflate(-6, -6).collidepoint(self.pos):
+                    rtype = ROOM_TYPES.get(key)
+
+                    if rtype == "public":
+                        self.vel *= 0.92
+                    elif rtype == "private":
+                        self.vel *= 0.80
+                    elif rtype == "service":
+                        self.vel *= 1.05
+
             if wall_future_block(self):
                 self.vel *= 0.2
-            if any(room.inflate(8,8).collidepoint(self.pos) for room in ARCHITECTURE["rooms"]):
-                self.vel *= 0.82
+
             if self.vel.length_squared() > 1e-6:
                 self.vel = self.vel.clamp_magnitude(2.6)
             else:
                 self.vel.update(0, 0)
+
             return
 
         neighbors = get_neighbors(self, agents, 60)
