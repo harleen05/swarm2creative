@@ -13,7 +13,11 @@ ALIGNMENT_STRENGTH = 0.05
 COHESION_STRENGTH = 0.01
 SEPARATION_STRENGTH = 0.08
 # ----------------------------------------
-
+MUSIC_STATE = {
+    "tempo": "moderate",
+    "density": "medium",
+    "dynamics": "neutral"
+}
 
 def limit_speed(v, max_speed):
     if v.length() > max_speed:

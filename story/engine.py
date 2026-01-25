@@ -13,7 +13,10 @@ ALIGNMENT_STRENGTH = 0.05
 COHESION_STRENGTH = 0.01
 SEPARATION_STRENGTH = 0.08
 # ----------------------------------------
-
+STORY_STATE = {
+    "tone": "neutral",
+    "pace": "moderate"
+}
 
 def limit_speed(v, max_speed):
     if v.length() > max_speed:

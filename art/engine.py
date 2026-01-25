@@ -3,6 +3,13 @@ import random
 from noise import pnoise2
 import math
 
+ART_STATE = {
+    "emotion": "neutral",
+    "flow_noise": 0.02,
+    "symmetry": 4,
+    "motion_intensity": "moderate"
+}
+
 FLOW_SCALE = 0.004
 FLOW_STRENGTH = 0.25
 

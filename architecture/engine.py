@@ -16,6 +16,12 @@ ROOM_HITS = {}
 ROOM_AGE = {}
 ROOM_TYPES = {}
 
+ARCH_STATE = {
+    "room_privacy": "medium",
+    "spatial_openness": "balanced",
+    "door_attraction": 1.0
+}
+
 ARCHITECTURE = {
     "columns": [],
     "primary_columns": [],
