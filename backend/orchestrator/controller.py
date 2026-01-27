@@ -6,6 +6,11 @@ from music.engine import MUSIC_STATE
 from architecture.engine import ARCH_STATE
 from story.engine import STORY_STATE
 from anyio import from_thread
+import art.engine as engine
+from art.runtime import ART_RUNTIME
+import random
+import math
+import pygame
 
 def apply_parameters(params):
     HISTORY.append(params)
@@ -21,6 +26,10 @@ def apply_parameters(params):
 
     if "story" in params:
         _apply_story(params["story"])
+
+    frame = ART_RUNTIME.get_frame()
+    if frame:
+        GLOBAL_STATE["art_frame"] = frame
 
     try:
         from_thread.run(manager.broadcast, GLOBAL_STATE)
@@ -39,6 +48,7 @@ def _apply_art(p):
             p["flow_noise_delta"]["confidence"],
             0.001, 0.1
         )
+        ART_STATE["paused"] = False
 
     if "symmetry_delta" in p:
         ART_STATE["symmetry"] = int(apply_delta(
@@ -47,6 +57,38 @@ def _apply_art(p):
             p["symmetry_delta"]["confidence"],
             1, 12
         ))
+    if "shape" in p:
+        ART_STATE["shape"] = p["shape"]["value"]
+
+        for agent in ART_RUNTIME.agents:
+            agent.history.clear()
+            if hasattr(agent, "_shape_mem"):
+                agent._shape_mem["star_target"] = None
+                agent._shape_mem["star_timer"] = 0
+
+    if "paused" in p:
+        ART_STATE["paused"] = p["paused"]["value"]
+
+    if "art_mode" in p:
+        ui_mode = p["art_mode"]["value"]
+        MODE_MAP = {
+            "freeform": "chaos",
+            "geometric": "flow",
+            "mandala": "composition"
+        }
+        ART_STATE["art_mode"] = MODE_MAP.get(ui_mode, "chaos")
+        ART_STATE["paused"] = False
+        for agent in ART_RUNTIME.agents:
+            angle = random.uniform(0, 2 * math.pi)
+            agent.vel = pygame.Vector2(
+                math.cos(angle),
+                math.sin(angle)
+            ) * random.uniform(0.6, 1.2)
+
+            agent.history.clear()
+            if hasattr(agent, "_shape_mem"):
+                agent._shape_mem["star_target"] = None
+                agent._shape_mem["star_timer"] = 0
 
 def _apply_music(p):
     if "tempo_shift" in p and p["tempo_shift"]["confidence"] > 0.4:

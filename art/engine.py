@@ -12,7 +12,7 @@ ART_STATE = {
 
 FLOW_SCALE = 0.004
 FLOW_STRENGTH = 0.25
-
+LAST_FRAME = None
 WIDTH = 800
 HEIGHT = 600
 ART_MODE = "chaos"
@@ -23,6 +23,7 @@ CENTER_Y = HEIGHT / 2
 current_shape = "spiral"
 star_target = None
 star_timer = 0
+ART_STATE["paused"] = False
 
 FOCAL_POINTS = [
     (WIDTH * 0.25, HEIGHT * 0.35),
@@ -195,33 +196,46 @@ def shift_color(color, t, emotion):
     b = max(0, min(255, b + int(20 * math.sin(t * speed + 4))))
     return (r, g, b)
 
-def shape_force(agent, t):
+def shape_force(agent, t, shape):
     cx, cy = CENTER_X, CENTER_Y
     pos = agent.pos
-    vec = pygame.Vector2(0,0)
-    global current_shape
-    global star_target, star_timer
-    if current_shape == "ring":
-        radius = 220 + math.sin(t*0.2)*60
-        angle = t*0.3 + agent.pos.x*0.002
+    vec = pygame.Vector2(0, 0)
+
+    if not hasattr(agent, "_shape_mem"):
+        agent._shape_mem = {
+            "star_target": None,
+            "star_timer": 0
+        }
+
+    mem = agent._shape_mem
+
+    if shape == "ring":
+        radius = 220 + math.sin(t * 0.2) * 60
+        angle = t * 0.3 + pos.x * 0.002
         target = pygame.Vector2(
             cx + math.cos(angle) * radius,
             cy + math.sin(angle) * radius
         )
         vec = target - pos
-    elif current_shape == "spiral":
-        r = 80 + t*25
-        angle = t*0.4 + agent.pos.x*0.003
-        target = pygame.Vector2(cx + math.cos(angle)*r,
-                                cy + math.sin(angle)*r)
+
+    elif shape == "spiral":
+        r = 80 + t * 25
+        angle = t * 0.4 + pos.x * 0.003
+        target = pygame.Vector2(
+            cx + math.cos(angle) * r,
+            cy + math.sin(angle) * r
+        )
         vec = target - pos
-    elif current_shape == "petal":
+
+    elif shape == "petal":
         r_base = 200
         petal_count = 6
         breathing = 20 * math.sin(t * 0.6)
+
         dx = pos.x - cx
         dy = pos.y - cy
         angle = math.atan2(dy, dx)
+
         r = r_base + breathing + 60 * math.sin(petal_count * angle)
         target = pygame.Vector2(
             cx + math.cos(angle) * r,
@@ -229,19 +243,27 @@ def shape_force(agent, t):
         )
         vec = target - pos
 
-    elif current_shape == "constellation":
-        if star_target is None:
-            star_target = random.choice(FOCAL_POINTS)
-        star_timer += 1
-        if star_timer > 180:
-            star_target = random.choice(FOCAL_POINTS)
-            star_timer = 0
-        target = pygame.Vector2(*star_target)
+    elif shape == "constellation":
+        if mem["star_target"] is None:
+            mem["star_target"] = random.choice(FOCAL_POINTS)
+
+        mem["star_timer"] += 1
+        if mem["star_timer"] > 180:
+            mem["star_target"] = random.choice(FOCAL_POINTS)
+            mem["star_timer"] = 0
+
+        target = pygame.Vector2(*mem["star_target"])
         vec = target - pos
-    elif current_shape == "vortex":
-        dir = pygame.Vector2(cx, cy) - pos
-        dir.rotate_ip(90)
-        vec = dir
+
+    elif shape == "vortex":
+        dir_vec = pygame.Vector2(cx, cy) - pos
+        if dir_vec.length() > 0:
+            dir_vec.rotate_ip(90)
+            vec = dir_vec
+
+    else:
+        vec = pygame.Vector2(0, 0)
+    
     return vec * 0.005
 
 class Agent:
@@ -261,7 +283,8 @@ class Agent:
 
     def update(self):
         self.pos += self.vel
-        self.vel = self.vel.lerp(self.vel.normalize(), 0.1)
+        if self.vel.length() > 0:
+            self.vel = self.vel.lerp(self.vel.normalize(), 0.1)
         if self.vel.length() > 1.2:
             self.vel.scale_to_length(1.2)
         self.edges()
@@ -270,7 +293,6 @@ class Agent:
             self.history.pop(0)
         self.color_index = (self.color_index + 0.02) % len(self.color_palette)
         self.color = self.color_palette[int(self.color_index)]
-
 
     def edges(self):
         if self.pos.x > WIDTH: self.pos.x = 0
@@ -307,17 +329,30 @@ class Agent:
         dy = HEIGHT - self.pos.y
         pygame.draw.circle(screen, self.color, (int(dx), int(dy)), 2)
     
-    def apply_behaviors(self, agents, time=None, pattern_stable=False):
+    def apply_behaviors(self, agents, time, state, pattern_stable=False):
+        ART_MODE = state.get("art_mode", "calm")
+
+        EMOTION = state.get("emotion", "calm")
+        FLOW_STRENGTH = state.get("flow_noise", 0.02)
+        SHAPE = state.get("shape", "freeform")
+
         neighbors = get_neighbors(self, agents, 60)
         if ART_MODE == "calm":
             align_force = alignment(self, neighbors, 0.04)
             cohesion_force = cohesion(self, neighbors, 0.003)
             separation_force = separation(self, neighbors, 25, 0.12)
 
-        elif ART_MODE == "chaos":
-            align_force = alignment(self, neighbors, 0.1)
-            cohesion_force = cohesion(self, neighbors, 0.02)
-            separation_force = separation(self, neighbors, 20, 0.25)
+        elif  ART_MODE == "chaos":
+            perp = pygame.Vector2(-self.vel.y, self.vel.x)
+            if perp.length() > 0:
+                perp = perp.normalize()
+            self.vel += perp * 0.08
+
+            # entropy burst
+            self.vel += pygame.Vector2(
+                random.uniform(-1, 1),
+                random.uniform(-1, 1)
+            ) * 0.05
 
         elif ART_MODE == "galaxy":
             align_force = alignment(self, neighbors, 0.03)
@@ -327,31 +362,55 @@ class Agent:
         else:
             align_force = cohesion_force = separation_force = pygame.Vector2(0,0)
 
-        if ART_MODE == "flow":
-            flow = get_flow_vector(self.pos.x, self.pos.y, time)
-            self.vel += flow * FLOW_STRENGTH
-        else:
-            self.vel += align_force
-            self.vel += cohesion_force
-            self.vel += separation_force
+        if ART_MODE == "flow":  
+            to_center = pygame.Vector2(CENTER_X, CENTER_Y) - self.pos
+            if to_center.length() > 0:
+                tangent = pygame.Vector2(-to_center.y, to_center.x).normalize()
+                self.vel += tangent * 0.08
+            self.vel += to_center * 0.0006
+            jitter = pygame.Vector2(
+                random.uniform(-0.3, 0.3),
+                random.uniform(-0.3, 0.3)
+            )
+            self.vel += jitter * 0.03
 
         if ART_MODE == "composition":
-            s = EMOTION_SETTINGS[EMOTION]
-            neighbors = get_neighbors(self, agents, 70)
-            align_force = alignment(self, neighbors, s["align"])
-            cohesion_force = cohesion(self, neighbors, s["cohesion"])
-            separation_force = separation(self, neighbors, 28, s["separation"])
-            focus = focal_force(self, s["focal"], time)
-            neg_space = negative_space_force(self, s["neg"])
-            self.vel += align_force
-            self.vel += cohesion_force
-            self.vel += separation_force
-            self.vel += focus
-            self.vel += neg_space
+            dx = self.pos.x - CENTER_X
+            dy = self.pos.y - CENTER_Y
+            angle = math.atan2(dy, dx)
+            step = (2 * math.pi) / state.get("symmetry", 6)
+            snapped = round(angle / step) * step
+            target = pygame.Vector2(
+                CENTER_X + math.cos(snapped) * 220,
+                CENTER_Y + math.sin(snapped) * 220
+            )
+            self.vel += (target - self.pos) * 0.002
+            to_center = pygame.Vector2(CENTER_X, CENTER_Y) - self.pos
+            self.vel += to_center * 0.0008
+            
         if pattern_stable:
             self.pos += pygame.Vector2(
                 math.sin(time * 0.2) * 0.2,
                 math.cos(time * 0.2) * 0.2
             )
         else:
-            self.vel += shape_force(self, time)
+            self.vel += shape_force(self, time, SHAPE)
+
+def get_frame_state(agents):
+    return {
+        "agents": [
+            {
+                "x": a.pos.x,
+                "y": a.pos.y,
+                "color": a.color,
+                "trail": [(p.x, p.y) for p in a.history]
+            }
+            for a in agents
+        ],
+        "meta": {
+            "emotion": ART_STATE.get("emotion"),
+            "symmetry": ART_STATE.get("symmetry"),
+            "flow_noise": ART_STATE.get("flow_noise"),
+            "art_mode": ART_STATE.get("art_mode")
+        }
+    }

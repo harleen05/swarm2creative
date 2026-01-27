@@ -1,22 +1,16 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
-from backend.llm.interpreter import interpret_prompt
 from backend.orchestrator.controller import apply_parameters
 
 router = APIRouter()
 
-class ChatInput(BaseModel):
-    text: str
+class Intent(BaseModel):
+    art: dict | None = None
+    music: dict | None = None
+    architecture: dict | None = None
+    story: dict | None = None
 
 @router.post("/interpret")
-def interpret(chat: ChatInput):
-    params = interpret_prompt(chat.text)
-
-    if not params:
-        return {
-            "applied": False,
-            "reason": "LLM unavailable or quota exceeded"
-        }
-
-    apply_parameters(params)
-    return {"applied": True, "parameters": params}
+def interpret(intent: Intent):
+    apply_parameters(intent.dict(exclude_none=True))
+    return {"ok": True}

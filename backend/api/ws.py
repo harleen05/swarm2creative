@@ -1,4 +1,4 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket
 from backend.orchestrator.ws_manager import manager
 from backend.orchestrator.state import GLOBAL_STATE
 
@@ -8,10 +8,8 @@ router = APIRouter()
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     try:
-        # Send initial state on connect
         await websocket.send_json(GLOBAL_STATE)
-
         while True:
-            await websocket.receive_text()  # keep alive
-    except WebSocketDisconnect:
+            await websocket.receive_text()
+    except:
         manager.disconnect(websocket)

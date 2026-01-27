@@ -1,9 +1,10 @@
 import pygame
-from engine import Agent, WIDTH, HEIGHT
+from engine import Agent, WIDTH, HEIGHT, get_frame_state
 import engine
 import statistics
 import os
 import math
+import time
 
 SAVE_DIR = "outputs"
 os.makedirs(SAVE_DIR, exist_ok=True)
@@ -182,5 +183,7 @@ while running:
     pygame.display.flip()
     clock.tick(90)
     time += 0.005
+    if time % 3 == 0:
+        engine.LAST_FRAME = get_frame_state(agents)
 
 pygame.quit()

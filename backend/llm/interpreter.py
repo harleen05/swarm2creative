@@ -28,7 +28,7 @@ def interpret_prompt(user_text: str):
                     "top_p": 0.9
                 }
             },
-            timeout=180
+            timeout=300
         )
 
         raw_output = response.json().get("response", "")

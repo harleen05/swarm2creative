@@ -1,17 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 export function useWebSocket(url) {
-  const wsRef = useRef(null);
   const [state, setState] = useState(null);
 
   useEffect(() => {
-    wsRef.current = new WebSocket(url);
+    const ws = new WebSocket(url);
 
-    wsRef.current.onmessage = (e) => {
-      setState(JSON.parse(e.data));
+    ws.onmessage = (event) => {
+      setState(JSON.parse(event.data));
     };
 
-    return () => wsRef.current.close();
+    return () => ws.close();
   }, [url]);
 
   return state;
