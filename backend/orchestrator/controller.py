@@ -11,6 +11,8 @@ from art.runtime import ART_RUNTIME
 import random
 import math
 import pygame
+from music.runtime import MusicRuntime
+MUSIC_RUNTIME = MusicRuntime()
 
 def apply_parameters(params):
     HISTORY.append(params)
@@ -30,6 +32,10 @@ def apply_parameters(params):
     frame = ART_RUNTIME.get_frame()
     if frame:
         GLOBAL_STATE["art_frame"] = frame
+
+        music_frame = MUSIC_RUNTIME.step(frame)
+        if music_frame:
+            GLOBAL_STATE["music_frame"] = music_frame
 
     try:
         from_thread.run(manager.broadcast, GLOBAL_STATE)

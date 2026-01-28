@@ -14,9 +14,9 @@ COHESION_STRENGTH = 0.01
 SEPARATION_STRENGTH = 0.08
 # ----------------------------------------
 MUSIC_STATE = {
-    "tempo": "moderate",
-    "density": "medium",
-    "dynamics": "neutral"
+    "tempo": 120,      # BPM
+    "density": 0.5,    # 0–1
+    "dynamics": 0.5    # 0–1
 }
 
 def limit_speed(v, max_speed):
