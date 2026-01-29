@@ -43,6 +43,19 @@ ROOM_GRAPH = {
     "isolated_rooms": set()
 }
 
+ARCH_INTENT_MAP = {
+    "spatial_openness": {
+        "tight": 0.6,
+        "balanced": 1.0,
+        "open": 1.5
+    },
+    "room_privacy": {
+        "low": 0.6,
+        "medium": 1.0,
+        "high": 1.4
+    }
+}
+
 def get_neighbors(agent, agents, radius):
     neighbors = []
     for other in agents:

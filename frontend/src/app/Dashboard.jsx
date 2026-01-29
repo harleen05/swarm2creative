@@ -10,6 +10,8 @@ import MusicPanel from "../panels/MusicPanel";
 import { AnimatePresence } from "framer-motion";
 import PromptBar from "../components/PromptBar";
 import { playNotes } from "../audio/MusicEngine";
+import ArchitecturePanel from "../panels/ArchitecturePanel";
+import ArchitectureCanvas from "../canvas/ArchitectureCanvas";
 
 const CHORDS = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
 
@@ -39,13 +41,16 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, []);   
 
+  useEffect(() => {
+    console.log("FULL WS STATE:", state);
+  }, [state]);
+  
   return (
     <div className="h-screen flex flex-col relative">
       <TopBar />
 
       <div className="flex flex-1 overflow-hidden relative">
 
-        {/* LEFT SIDEBAR */}
         <div className="flex h-full">
         <SmartDock
           active={activePanel}
@@ -56,15 +61,22 @@ export default function Dashboard() {
           <AnimatePresence mode="wait">
             {activePanel === "art" && <ArtPanel key="art" />}
             {activePanel === "music" && <MusicPanel key="music" />}
+            {activePanel === "architecture" && (
+              <ArchitecturePanel key="architecture" />
+            )}
           </AnimatePresence>
         </div>
 
         <div className="flex-1 flex items-center justify-center px-16">
           <div className="relative" style={{ width: 800, height: 600 }}>
+          {activePanel === "architecture" ? (
+            <ArchitectureCanvas frame={state?.architecture ?? null} />
+          ) : (
             <ArtCanvas
               artFrame={state?.art_frame}
               onCaptureReady={setCaptureFn}
             />
+          )}
 
             {state?.music_frame?.notes && (
               <div className="absolute bottom-6 left-6">

@@ -130,21 +130,20 @@ def _apply_music(p):
     if "rhythm_intensity" in p and p["rhythm_intensity"]["confidence"] > 0.4:
         MUSIC_STATE["rhythm_intensity"] = p["rhythm_intensity"]["value"]
 
-
 def _apply_architecture(p):
-    if "door_attraction_delta" in p:
-        ARCH_STATE["door_attraction"] = apply_delta(
-            ARCH_STATE.get("door_attraction", 1.0),
-            p["door_attraction_delta"]["value"],
-            p["door_attraction_delta"]["confidence"],
-            0.2, 2.0
-        )
+    if "spatial_openness" in p:
+        ARCH_STATE["spatial_openness"] = p["spatial_openness"]["value"]
 
-    if "room_privacy_shift" in p and p["room_privacy_shift"]["confidence"] > 0.4:
-        ARCH_STATE["room_privacy"] = p["room_privacy_shift"]["value"]
+    if "room_privacy" in p:
+        ARCH_STATE["room_privacy"] = p["room_privacy"]["value"]
 
-    if "spatial_openness_shift" in p and p["spatial_openness_shift"]["confidence"] > 0.4:
-        ARCH_STATE["spatial_openness"] = p["spatial_openness_shift"]["value"]
+    if "circulation_style" in p:
+        ARCH_STATE["circulation_style"] = p["circulation_style"]["value"]
+
+    GLOBAL_STATE["architecture"] = ARCH_STATE
+
+    print("ARCH_STATE NOW:", ARCH_STATE)
+    print("GLOBAL_STATE ARCH:", GLOBAL_STATE.get("architecture"))
 
 def _apply_story(p):
     if "tone" in p and p["tone"]["confidence"] > 0.4:
