@@ -1,5 +1,8 @@
 import { useEffect, useRef } from "react";
-const MAX_HISTORY = 64;
+
+const HISTORY = 96;
+const PITCH_MIN = 36;
+const PITCH_MAX = 84;
 
 export default function MusicCanvas({ notes }) {
   const ref = useRef();
@@ -8,16 +11,13 @@ export default function MusicCanvas({ notes }) {
   useEffect(() => {
     if (!notes || notes.length === 0) return;
 
-    const timestamp = performance.now();
+    const t = performance.now();
     notes.forEach(n => {
-      history.current.push({
-        ...n,
-        t: timestamp
-      });
+      history.current.push({ ...n, t });
     });
 
-    if (history.current.length > MAX_HISTORY) {
-      history.current.splice(0, history.current.length - MAX_HISTORY);
+    if (history.current.length > HISTORY) {
+      history.current.splice(0, history.current.length - HISTORY);
     }
   }, [notes]);
 
@@ -29,42 +29,39 @@ export default function MusicCanvas({ notes }) {
     let raf;
 
     const draw = () => {
-      ctx.fillStyle = "rgba(10,10,20,0.25)";
+      ctx.fillStyle = "rgba(8,8,14,0.35)";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // grid
+      ctx.strokeStyle = "rgba(255,255,255,0.05)";
+      for (let x = 0; x < canvas.width; x += 60) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
 
       const now = performance.now();
 
-      history.current.forEach((n, i) => {
-        const age = (now - n.t) / 1000;
-        if (age > 2) return;
+      history.current.forEach(n => {
+        const age = (now - n.t) / 600;
+        if (age > 3) return;
 
-        const x =
-          canvas.width -
-          age * canvas.width * 0.5;
+        const x = age * 220;
+        if (x > canvas.width) return;
+        const pitchNorm =
+          (n.pitch - PITCH_MIN) / (PITCH_MAX - PITCH_MIN);
 
-        const y =
-          canvas.height -
-          ((n.pitch - 36) / 48) * canvas.height;
+        const y = canvas.height - pitchNorm * canvas.height;
+        const w = (n.duration || 0.25) * 120;
+        const h = n.layer === "bass" ? 10 : 6;
 
-        const pulse = Math.sin(age * 8) * 0.5 + 1;
-        const r = (4 + (n.velocity || 40) * 0.06) * pulse;
+        ctx.fillStyle =
+          n.layer === "bass"
+            ? "rgba(120,220,220,0.8)"
+            : "rgba(190,160,255,0.9)";
 
-        let color = "rgba(180,150,255,0.9)"; // melody
-        if (n.layer === "bass") {
-          color = "rgba(120,220,220,0.85)";
-        }
-
-        if (n.call === false) {
-          color = color.replace("0.9", "0.5");
-        }
-
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fillStyle = color;
-        ctx.shadowBlur = 12;
-        ctx.shadowColor = color;
-        ctx.fill();
-        ctx.shadowBlur = 0;
+        ctx.fillRect(x, y, w, h);
       });
 
       raf = requestAnimationFrame(draw);
@@ -77,9 +74,9 @@ export default function MusicCanvas({ notes }) {
   return (
     <canvas
       ref={ref}
-      width={700}
-      height={280}
-      className="rounded-xl bg-black/40"
+      width={720}
+      height={260}
+      className="rounded-xl bg-black/50"
     />
   );
 }

@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { sendIntent } from "../api/interpret";
 import { enableAudio } from "../audio/MusicEngine";
+import { startRecording, stopRecording } from "../audio/MusicEngine";
 
 export default function MusicPanel() {
   return (
@@ -155,7 +156,21 @@ export default function MusicPanel() {
             className="w-full"
           />
         </section>
+        <section className="space-y-3">
+          <button
+            onClick={startRecording}
+            className="w-full py-2 rounded-lg bg-red-500/30 hover:bg-red-500/50 text-sm"
+          >
+            Start Recording
+          </button>
 
+          <button
+            onClick={stopRecording}
+            className="w-full py-2 rounded-lg bg-green-500/30 hover:bg-green-500/50 text-sm"
+          >
+            Stop & Save
+          </button>
+        </section>
       </div>
     </motion.div>
   );

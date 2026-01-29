@@ -1,23 +1,35 @@
 let audioCtx = null;
-let audioEnabled = false;
 let masterGain = null;
+let audioEnabled = false;
+
+let mediaRecorder = null;
+let recordedChunks = [];
+let mediaDest = null;
 
 function getCtx() {
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
     masterGain = audioCtx.createGain();
-    masterGain.gain.value = 0.3;
+    masterGain.gain.value = 0.25;
+
+    mediaDest = audioCtx.createMediaStreamDestination();
+
+    masterGain.connect(mediaDest);
     masterGain.connect(audioCtx.destination);
   }
   return audioCtx;
 }
 
-
-export function enableAudio() {
+function ensureAudioRunning() {
   const ctx = getCtx();
-  if (ctx.state === "suspended") {
+  if (ctx.state !== "running") {
     ctx.resume();
   }
+}
+
+export function enableAudio() {
+  ensureAudioRunning();
   audioEnabled = true;
   console.log("🔊 Audio enabled");
 }
@@ -58,4 +70,33 @@ export function playNotes(notes) {
     osc.start(start);
     osc.stop(end);
   });
+}
+
+export function startRecording() {
+  ensureAudioRunning();
+
+  recordedChunks = [];
+  mediaRecorder = new MediaRecorder(mediaDest.stream);
+  mediaRecorder.ondataavailable = e => recordedChunks.push(e.data);
+  mediaRecorder.start();
+
+  console.log("⏺ Recording started");
+}
+
+export function stopRecording() {
+  if (!mediaRecorder) return;
+
+  mediaRecorder.stop();
+
+  mediaRecorder.onstop = () => {
+    const blob = new Blob(recordedChunks, { type: "audio/webm" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "swarm_music.webm";
+    a.click();
+
+    console.log("💾 Recording saved");
+  };
 }
