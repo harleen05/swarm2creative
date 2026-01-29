@@ -23,14 +23,14 @@ export default function Dashboard() {
     }
   }, [state?.music_frame]);
   useEffect(() => {
+    if (!latestNotes || latestNotes.length === 0) return;
+  
     const interval = setInterval(() => {
-      if (Math.random() < 0.7) {
-        playNotes(latestNotes);
-      }
-    }, 180);
+      playNotes(latestNotes);
+    }, 200);
   
     return () => clearInterval(interval);
-  }, [latestNotes]);
+  }, [latestNotes]);  
 
   return (
     <div className="h-screen flex flex-col relative">

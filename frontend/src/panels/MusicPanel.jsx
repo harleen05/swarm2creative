@@ -27,6 +27,37 @@ export default function MusicPanel() {
           Enable Audio
         </button>
       </section>
+      <section className="space-y-4">
+        <label className="flex items-center justify-between text-sm">
+          Melody
+          <input
+            type="checkbox"
+            defaultChecked
+            onChange={(e) =>
+              sendIntent({
+                music: {
+                  melody_enabled: { value: e.target.checked, confidence: 1.0 }
+                }
+              })
+            }
+          />
+        </label>
+
+        <label className="flex items-center justify-between text-sm">
+          Bass
+          <input
+            type="checkbox"
+            defaultChecked
+            onChange={(e) =>
+              sendIntent({
+                music: {
+                  bass_enabled: { value: e.target.checked, confidence: 1.0 }
+                }
+              })
+            }
+          />
+        </label>
+      </section>
 
       <div className="space-y-10">
 
@@ -67,6 +98,30 @@ export default function MusicPanel() {
               sendIntent({
                 music: {
                   density_shift: {
+                    value: Number(e.target.value),
+                    confidence: 0.8
+                  }
+                }
+              })
+            }
+            className="w-full"
+          />
+        </section>
+
+        <section>
+          <div className="text-xs uppercase tracking-wider opacity-60 mb-3">
+            Rhythm Intensity
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={1.5}
+            step={0.01}
+            defaultValue={1}
+            onChange={(e) =>
+              sendIntent({
+                music: {
+                  rhythm_intensity: {
                     value: Number(e.target.value),
                     confidence: 0.8
                   }

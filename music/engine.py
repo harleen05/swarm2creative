@@ -14,10 +14,21 @@ COHESION_STRENGTH = 0.01
 SEPARATION_STRENGTH = 0.08
 # ----------------------------------------
 MUSIC_STATE = {
-    "tempo": 120,      # BPM
-    "density": 0.5,    # 0–1
-    "dynamics": 0.5    # 0–1
+    "tempo": 120,
+    "density": 0.5,
+    "dynamics": 0.5,
+
+    "emotion": "neutral",
+    "rhythm_style": "ambient",     # ambient | pulse | groove
+    "energy_curve": "flat",        # flat | rising | falling | waves
+    "harmonic_motion": "static"    # static | slow | drifting
 }
+
+MUSIC_STATE.update({
+    "melody_enabled": True,
+    "bass_enabled": True,
+    "rhythm_intensity": 1.0
+})
 
 def limit_speed(v, max_speed):
     if v.length() > max_speed:

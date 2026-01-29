@@ -12,13 +12,6 @@ SCALES = {
     "dark":    [60, 63, 65, 66, 68]
 }
 
-EMOTION_WEIGHTS = {
-    "calm": 0.15,
-    "neutral": 0.25,
-    "tense": 0.45,
-    "dark": 0.55
-}
-
 class SwarmMusicMapper:
     def __init__(self):
         self.mid = MidiFile()
@@ -114,20 +107,42 @@ class SwarmMusicMapper:
 
     def save(self, filename="swarm_music.mid"):
         self.mid.save(filename)
-    
+
+EMOTION_WEIGHTS = {
+    "calm": 0.1,
+    "neutral": 0.2,
+    "tense": 0.4,
+    "dark": 0.45,
+    "hopeful": 0.15
+}
+
+HARMONIC_GRAVITY = {
+    "static": 0.0,
+    "slow": 0.15,
+    "drifting": 0.35
+}
+
 def map_frame_to_notes(agents, state=None, chord_root=None, motif=None, max_notes=6):
     import math, random
+
+    if state is None:
+        state = {}
+
+    emotion = state.get("emotion", "neutral")
+    rhythm = state.get("rhythm_style", "ambient")
+    energy_curve = state.get("energy_curve", "flat")
+    density = state.get("density", 0.5)
+    dynamics = state.get("dynamics", 0.5)
+    motif = state.get("motif", None)
+
     use_motif = motif and random.random() < 0.65
     call_phase = state.setdefault("_call_phase", 0)
     state["_call_phase"] = (call_phase + 1) % 8
     is_call = call_phase < 4
 
-    density = (state or {}).get("density", 0.5)
-    dynamics = (state or {}).get("dynamics", 0.5)
-    emotion = (state or {}).get("emotion", "neutral")
-
     scale = SCALES.get(emotion, SCALES["neutral"])
-    gravity = EMOTION_WEIGHTS.get(emotion, 0.25)
+    harmonic_motion = state.get("harmonic_motion", "static")
+    gravity = EMOTION_WEIGHTS.get(emotion, 0.25) + HARMONIC_GRAVITY.get(harmonic_motion, 0)
     notes = []
 
     if chord_root is None:
@@ -169,9 +184,24 @@ def map_frame_to_notes(agents, state=None, chord_root=None, motif=None, max_note
         else:
             velocity = int(35 + energy * 30 * dynamics)
 
-        duration = 0.15 + min(0.25, energy * 0.1)
+        if rhythm == "ambient":
+            duration = random.uniform(0.6, 1.2)
+        elif rhythm == "pulse":
+            duration = 0.25
+        elif rhythm == "groove":
+            duration = random.choice([0.25, 0.25, 0.5])
+
         if len(notes) >= max_notes:
             break
+
+        if energy_curve == "rising":
+            velocity = int(velocity * (0.7 + i / max_notes))
+        elif energy_curve == "falling":
+            velocity = int(velocity * (1.2 - i / max_notes))
+        elif energy_curve == "waves":
+            velocity = int(velocity * (0.6 + 0.4 * math.sin(i)))
+
+        velocity = max(20, min(100, velocity))
 
         notes.append({
             "pitch": pitch,

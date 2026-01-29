@@ -106,6 +106,31 @@ def _apply_music(p):
     if "dynamics" in p and p["dynamics"]["confidence"] > 0.4:
         MUSIC_STATE["dynamics"] = p["dynamics"]["value"]
 
+    if "music_intent" in p:
+        intent = p["music_intent"]
+
+        if "mood" in intent and intent["mood"]["confidence"] > 0.4:
+            MUSIC_STATE["emotion"] = intent["mood"]["value"]
+
+        if "rhythm_style" in intent and intent["rhythm_style"]["confidence"] > 0.4:
+            MUSIC_STATE["rhythm_style"] = intent["rhythm_style"]["value"]
+
+        if "energy_curve" in intent and intent["energy_curve"]["confidence"] > 0.4:
+            MUSIC_STATE["energy_curve"] = intent["energy_curve"]["value"]
+
+        if "harmonic_motion" in intent and intent["harmonic_motion"]["confidence"] > 0.4:
+            MUSIC_STATE["harmonic_motion"] = intent["harmonic_motion"]["value"]
+    
+    if "melody_enabled" in p:
+        MUSIC_STATE["melody_enabled"] = p["melody_enabled"]["value"]
+
+    if "bass_enabled" in p:
+        MUSIC_STATE["bass_enabled"] = p["bass_enabled"]["value"]
+
+    if "rhythm_intensity" in p and p["rhythm_intensity"]["confidence"] > 0.4:
+        MUSIC_STATE["rhythm_intensity"] = p["rhythm_intensity"]["value"]
+
+
 def _apply_architecture(p):
     if "door_attraction_delta" in p:
         ARCH_STATE["door_attraction"] = apply_delta(
