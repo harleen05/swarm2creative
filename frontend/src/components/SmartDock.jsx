@@ -5,7 +5,6 @@ const items = [
   { id: "music", icon: Music },
   { id: "architecture", icon: Building },
   { id: "story", icon: Book },
-  { id: "chat", icon: MessageCircle }
 ];
 
 export default function SmartDock({ active, setActive }) {

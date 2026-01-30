@@ -1,5 +1,5 @@
 export async function generateFigurativeImage(optionalPrompt) {
-  const res = await fetch('${API_BASE}/generate-image', {
+  const res = await fetch(`${API_BASE}/generate-image`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
