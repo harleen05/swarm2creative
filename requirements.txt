@@ -2,6 +2,13 @@ fastapi
 uvicorn[standard]
 noise
 python-dotenv
+mido
+music21
+pretty_midi
+python-rtmidi
+opencv-python
+scipy
+scikit-learn
 anyio
 altair==5.5.0
 attrs==25.4.0
