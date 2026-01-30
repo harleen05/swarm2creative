@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { HTTP_BASE } from "../configs/api";
+import { HTTP_BASE } from "../config/api";
 
 export function useBackendState() {
   const [state, setState] = useState(null);
