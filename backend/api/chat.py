@@ -23,10 +23,8 @@ async def interpret(payload: Intent):
     apply_parameters(payload.dict(exclude_none=True))
 
     try:
-        # We're already in an async context here, so we can await directly
         await manager.broadcast(GLOBAL_STATE)
     except Exception:
-        # If broadcasting fails we don't want to break the API contract
         pass
 
     return {"status": "ok"}
