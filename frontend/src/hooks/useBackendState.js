@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { HTTP_BASE } from "../config/api";
+import { API_BASE } from "../config/api";
 
 export function useBackendState() {
   const [state, setState] = useState(null);
 
   const fetchState = async () => {
     try {
-      const res = await fetch(`${HTTP_BASE}/state`);
+      const res = await fetch(`${API_BASE}/state`);
       const json = await res.json();
       setState(json);
     } catch (e) {

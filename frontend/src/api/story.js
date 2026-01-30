@@ -1,5 +1,5 @@
 export async function getStory() {
-  const res = await fetch("https://swarm2creative.onrender.com/story", {
+  const res = await fetch('${API_BASE}/story', {
     method: "GET",
     headers: { "Content-Type": "application/json" },
   });
@@ -14,7 +14,7 @@ export async function getStory() {
 }
 
 export async function generateStory(prompt = null, enhance = false, options = {}) {
-  const res = await fetch("https://swarm2creative.onrender.com/story/generate", {
+  const res = await fetch('${API_BASE}/story/generate', {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -38,7 +38,7 @@ export async function generateStory(prompt = null, enhance = false, options = {}
 }
 
 export async function getFullStory() {
-  const res = await fetch("https://swarm2creative.onrender.com/story/full", {
+  const res = await fetch('${API_BASE}/story/full', {
     method: "GET",
     headers: { "Content-Type": "application/json" },
   });

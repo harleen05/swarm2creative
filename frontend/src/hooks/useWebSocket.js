@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { WS_BASE } from "../config/api";
+import { API_BASE, WS_BASE } from "../config/api";
 
 export function useWebSocket() {
   const [state, setState] = useState(null);
