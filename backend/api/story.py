@@ -211,12 +211,8 @@ def enhance_story_with_llm(story_events, tone="neutral", pace="moderate", mood="
     """
     Use LLM to enhance the story narrative based on events and user intent.
     Returns paragraphs marked as enhanced.
+    If no events, generates an initial story based on tone/mood/pace.
     """
-    if not story_events:
-        return {
-            "paragraphs": [{"type": "paragraph", "content": "The swarm moved in silence, with no notable interactions.", "enhanced": False}]
-        }
-    
     # Build context from story events with agent names (limit to prevent long prompts)
     from story.story_mapper import AGENT_NAMES
     event_summary = []
@@ -246,13 +242,18 @@ def enhance_story_with_llm(story_events, tone="neutral", pace="moderate", mood="
     # Use limited context (already limited to 15 events above)
     limited_context = context
     
+    # Adjust prompt based on whether we have events
+    if not story_events:
+        events_context = "This is the beginning of a swarm simulation. Generate an opening narrative about a digital swarm of agents moving through space."
+    else:
+        events_context = f"Events:\n{limited_context}"
+    
     prompt = f"""Create a {word_limit}-word story in exactly {paragraph_count} paragraphs.
 
 Tone: {tone}, Mood: {mood}, Pace: {pace}
 {f"User request: {user_prompt}" if user_prompt else ""}
 
-Events:
-{limited_context}
+{events_context}
 
 Return JSON only:
 {{
@@ -467,26 +468,56 @@ async def generate_story(payload: StoryEnhancementRequest):
             "story": story_frame
         }
     else:
-        # Return current story with constraints applied
-        # This ensures word_limit and paragraph_count are respected even without LLM enhancement
+        # Generate story with current settings, even if no events exist
+        # If no events, use LLM to generate an initial story based on tone/mood/pace
         full_story = STORY_RUNTIME.generate_full_story()
         
-        # Update GLOBAL_STATE with the constrained story
-        if full_story.get("paragraphs"):
-            story_frame = GLOBAL_STATE.get("story_frame", {})
-            story_frame["paragraphs"] = full_story["paragraphs"]
-            story_frame["story_events"] = full_story.get("story_events", [])
-            GLOBAL_STATE["story_frame"] = story_frame
+        # If there are no events or the story is just the default message, generate with LLM
+        if not story_events or (full_story.get("paragraphs") and len(full_story["paragraphs"]) == 1 and "silence" in full_story["paragraphs"][0].get("content", "").lower()):
+            # Generate an initial story using LLM based on tone/mood/pace
+            print(f"📝 No events found, generating initial story with tone={tone}, mood={mood}, pace={pace}")
+            enhanced = enhance_story_with_llm(
+                [],  # No events
+                tone=tone,
+                pace=pace,
+                mood=mood,
+                word_limit=word_limit,
+                paragraph_count=paragraph_count,
+                user_prompt=None,
+                base_story=None
+            )
             
-            # Broadcast updated state via WebSocket
-            try:
-                await manager.broadcast(GLOBAL_STATE)
-            except Exception as e:
-                print(f"⚠️ Could not broadcast story update: {e}")
+            enhanced_paragraphs = enhanced.get("paragraphs", [])
+            story_frame = GLOBAL_STATE.get("story_frame", {})
+            story_frame["paragraphs"] = enhanced_paragraphs
+            story_frame["enhanced"] = True
+            story_frame["story_events"] = story_events
+            story_frame["phase"] = "introduction"
+            story_frame["meta"] = {
+                "tone": tone,
+                "pace": pace,
+                "mood": mood,
+                "total_events": len(story_events),
+                "current_frame": 0
+            }
+            GLOBAL_STATE["story_frame"] = story_frame
+        else:
+            # Update GLOBAL_STATE with the constrained story
+            if full_story.get("paragraphs"):
+                story_frame = GLOBAL_STATE.get("story_frame", {})
+                story_frame["paragraphs"] = full_story["paragraphs"]
+                story_frame["story_events"] = full_story.get("story_events", [])
+                GLOBAL_STATE["story_frame"] = story_frame
+        
+        # Broadcast updated state via WebSocket
+        try:
+            await manager.broadcast(GLOBAL_STATE)
+        except Exception as e:
+            print(f"⚠️ Could not broadcast story update: {e}")
         
         return {
             "status": "ok",
-            "story": full_story
+            "story": GLOBAL_STATE.get("story_frame", {})
         }
 
 

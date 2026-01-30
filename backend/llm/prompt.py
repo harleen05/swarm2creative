@@ -95,34 +95,57 @@ No explanations.
 No markdown.
 No comments.
 
-Schema:
+Schema (value types):
+- tempo_shift: Number (BPM 60-200) or string ("fast"/"slow"/"moderate")
+- density_shift: Number (0.0-1.0) for note density
+- dynamics: Number (0.0-1.0) for volume/intensity
+- melody_enabled: Boolean (true/false) to enable/disable melody
+- bass_enabled: Boolean (true/false) to enable/disable bass
+- rhythm_intensity: Number (0.0-2.0) for rhythm strength
+- music_intent.mood: String (neutral, joyful, melancholic, tense, etc.)
+- music_intent.rhythm_style: String (ambient, pulse, groove)
+- music_intent.energy_curve: String (flat, rising, falling, waves)
+- music_intent.harmonic_motion: String (static, slow, drifting)
+
+Example JSON:
 {
   "art": {
-    "emotion": { "value": "", "confidence": 0.0 },
-    "pattern": { "value": "", "confidence": 0.0 },
-    "flow_noise_delta": { "value": 0.0, "confidence": 0.0 },
-    "symmetry_delta": { "value": 0, "confidence": 0.0 },
-    "motion_intensity": { "value": "", "confidence": 0.0 }
+    "emotion": { "value": "calm", "confidence": 0.8 },
+    "flow_noise_delta": { "value": -0.01, "confidence": 0.7 }
   },
   "music": {
-    "tempo_shift": { "value": "", "confidence": 0.0 },
-    "harmony": { "value": "", "confidence": 0.0 },
-    "density_shift": { "value": "", "confidence": 0.0 },
-    "dynamics": { "value": "", "confidence": 0.0 }
+    "tempo_shift": { "value": 120, "confidence": 0.9 },
+    "melody_enabled": { "value": true, "confidence": 1.0 },
+    "bass_enabled": { "value": true, "confidence": 1.0 },
+    "music_intent": {
+      "mood": { "value": "joyful", "confidence": 0.8 },
+      "rhythm_style": { "value": "groove", "confidence": 0.7 }
+    }
   },
-  "architecture": {
-    "room_privacy_shift": { "value": "", "confidence": 0.0 },
-    "circulation_focus_shift": { "value": "", "confidence": 0.0 },
-    "spatial_openness_shift": { "value": "", "confidence": 0.0 },
-    "door_attraction_delta": { "value": 0.0, "confidence": 0.0 }
-  },
-  "story": {
-    "tone": { "value": "", "confidence": 0.0 },
-    "pace_shift": { "value": "", "confidence": 0.0 },
-    "mood": { "value": "", "confidence": 0.0 },
-    "narrative_focus": { "value": "", "confidence": 0.0 }
-  }
+  "architecture": {},
+  "story": {}
 }
+
+-----------------------------------
+
+COMMAND INTERPRETATION
+-----------------------------------
+
+Common commands and their interpretations:
+
+- "play music" / "start music" / "enable music" → Set melody_enabled: true, bass_enabled: true, with high confidence
+- "stop music" / "mute music" → Set melody_enabled: false, bass_enabled: false
+- "faster music" / "speed up" → Increase tempo_shift value (e.g., +20 BPM)
+- "slower music" / "slow down" → Decrease tempo_shift value (e.g., -20 BPM)
+- "louder" / "more intense" → Increase dynamics value
+- "quieter" / "softer" → Decrease dynamics value
+- "more energetic" → Increase tempo, density, and dynamics
+- "calmer" / "more ambient" → Decrease tempo, density, set rhythm_style to "ambient"
+
+For tempo_shift:
+- If user says "fast", "slow", "moderate" → map to numeric values: fast=150, moderate=120, slow=80
+- If user gives a number (e.g., "120 BPM") → use that number directly
+- For relative changes ("faster", "slower") → use delta values like +20 or -20
 
 -----------------------------------
 
@@ -134,6 +157,7 @@ IMPORTANT CONSTRAINTS
 - Use small deltas unless strong intent is detected.
 - Maintain cross-domain coherence.
 - Avoid extremes unless explicitly requested.
+- For music commands, use high confidence (0.8-1.0) for direct commands like "play music".
 
 -----------------------------------
 

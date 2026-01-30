@@ -81,22 +81,46 @@ export default function StoryPanel({ story }) {
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [wordLimit, paragraphCount]); // Only trigger on these changes
 
-    const updateTone = (newTone) => {
+    const updateTone = async (newTone) => {
       setTone(newTone);
       sendIntent({
         story: {
           tone: { value: newTone, confidence: 0.9 }
         }
       });
+      // Generate story with new tone
+      try {
+        await generateStory(null, false, {
+          tone: newTone,
+          mood,
+          pace,
+          wordLimit,
+          paragraphCount
+        });
+      } catch (error) {
+        console.error("Failed to generate story with new tone:", error);
+      }
     };
 
-    const updatePace = (newPace) => {
+    const updatePace = async (newPace) => {
       setPace(newPace);
       sendIntent({
         story: {
           pace_shift: { value: newPace, confidence: 0.9 }
         }
       });
+      // Generate story with new pace
+      try {
+        await generateStory(null, false, {
+          tone,
+          mood,
+          pace: newPace,
+          wordLimit,
+          paragraphCount
+        });
+      } catch (error) {
+        console.error("Failed to generate story with new pace:", error);
+      }
     };
   
     return (

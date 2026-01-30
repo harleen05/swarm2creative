@@ -98,7 +98,19 @@ def _apply_art(p):
 
 def _apply_music(p):
     if "tempo_shift" in p and p["tempo_shift"]["confidence"] > 0.4:
-        MUSIC_STATE["tempo"] = p["tempo_shift"]["value"]
+        tempo_value = p["tempo_shift"]["value"]
+        # Handle string values like "fast", "slow", "moderate"
+        if isinstance(tempo_value, str):
+            tempo_map = {"fast": 150, "moderate": 120, "slow": 80, "very fast": 180, "very slow": 60}
+            MUSIC_STATE["tempo"] = tempo_map.get(tempo_value.lower(), 120)
+        # Handle numeric values (absolute BPM or relative delta)
+        elif isinstance(tempo_value, (int, float)):
+            # If it's a reasonable BPM value (60-200), use it directly
+            if 60 <= tempo_value <= 200:
+                MUSIC_STATE["tempo"] = int(tempo_value)
+            # Otherwise, treat as delta and add to current tempo
+            else:
+                MUSIC_STATE["tempo"] = max(60, min(200, MUSIC_STATE.get("tempo", 120) + int(tempo_value)))
 
     if "density_shift" in p and p["density_shift"]["confidence"] > 0.4:
         MUSIC_STATE["density"] = p["density_shift"]["value"]
