@@ -42,7 +42,9 @@ export default function ArchitecturePanel() {
             onChange={(e) =>
               sendIntent({
                 architecture: {
-                  openness: { value: e.target.value, confidence: 1.0 }
+                  architecture_intent: {
+                    spatial_openness: { value: e.target.value, confidence: 1.0 }
+                  }
                 }
               })
             }
@@ -62,7 +64,9 @@ export default function ArchitecturePanel() {
             onChange={(e) =>
               sendIntent({
                 architecture: {
-                  privacy: { value: e.target.value, confidence: 1.0 }
+                  architecture_intent: {
+                    room_privacy: { value: e.target.value, confidence: 1.0 }
+                  }
                 }
               })
             }
@@ -82,7 +86,9 @@ export default function ArchitecturePanel() {
             onChange={(e) =>
               sendIntent({
                 architecture: {
-                  circulation: { value: e.target.value, confidence: 1.0 }
+                  architecture_intent: {
+                    circulation_style: { value: e.target.value, confidence: 1.0 }
+                  }
                 }
               })
             }
@@ -105,17 +111,19 @@ export default function ArchitecturePanel() {
             onClick={() =>
               sendIntent({
                 architecture: {
-                  spatial_openness: {
-                    value: PRESETS[key].spatial_openness,
-                    confidence: 1
-                  },
-                  room_privacy: {
-                    value: PRESETS[key].room_privacy,
-                    confidence: 1
-                  },
-                  circulation_style: {
-                    value: PRESETS[key].circulation_style,
-                    confidence: 1
+                  architecture_intent: {
+                    spatial_openness: {
+                      value: PRESETS[key].spatial_openness,
+                      confidence: 1
+                    },
+                    room_privacy: {
+                      value: PRESETS[key].room_privacy,
+                      confidence: 1
+                    },
+                    circulation_style: {
+                      value: PRESETS[key].circulation_style,
+                      confidence: 1
+                    }
                   }
                 }
               })

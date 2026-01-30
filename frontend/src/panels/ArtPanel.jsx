@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { sendIntent } from "../api/interpret.js";
+import { generateFigurativeImage } from "../api/generateImage.js";
 
 export default function ArtPanel() {
   return (
@@ -59,7 +60,9 @@ export default function ArtPanel() {
               { label: "Ring", value: "ring" },
               { label: "Petal", value: "petal" },
               { label: "Constellation", value: "constellation" },
-              { label: "Vortex", value: "vortex" }
+              { label: "Vortex", value: "vortex" },
+              { label: "Orbit", value: "orbit" },
+              { label: "Rays", value: "rays" }
             ].map(s => (
               <button
                 key={s.value}
@@ -190,6 +193,37 @@ export default function ArtPanel() {
         </section>
 
       </div>
+
+      {/* ───────────────── Figurative Generation ───────────────── */}
+      <section className="mt-10">
+        <div className="text-xs uppercase tracking-wider opacity-60 mb-3">
+          Figurative Snapshot
+        </div>
+        <p className="text-xs opacity-60 mb-3">
+          Uses the current art, architecture and music state as a prompt
+          to an external diffusion model (SDXL / Stable Diffusion).
+        </p>
+        <button
+          onClick={async () => {
+            try {
+              const result = await generateFigurativeImage();
+              if (!result || !result.image_base64) {
+                console.warn("No image returned from backend", result);
+                return;
+              }
+              const a = document.createElement("a");
+              a.href = `data:image/png;base64,${result.image_base64}`;
+              a.download = "figurative_snapshot.png";
+              a.click();
+            } catch (e) {
+              console.error("Figurative image generation error", e);
+            }
+          }}
+          className="mt-1 py-2 px-4 rounded-lg bg-white/15 hover:bg-white/25 text-sm"
+        >
+          Generate Figurative Image
+        </button>
+      </section>
     </motion.div>
   );
 }

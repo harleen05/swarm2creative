@@ -14,7 +14,8 @@ def frame_loop():
             GLOBAL_STATE["art_frame"] = art_frame
 
         if arch_frame:
-            GLOBAL_STATE["architecture_frame"] = arch_frame
+            # Keep the key name aligned with what the frontend expects
+            GLOBAL_STATE["architecture"] = arch_frame
 
         try:
             from_thread.run(manager.broadcast, GLOBAL_STATE)

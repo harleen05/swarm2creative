@@ -4,7 +4,7 @@ const HISTORY = 96;
 const PITCH_MIN = 36;
 const PITCH_MAX = 84;
 
-export default function MusicCanvas({ notes }) {
+export default function MusicCanvas({ notes, chord }) {
   const ref = useRef();
   const history = useRef([]);
 
@@ -64,19 +64,37 @@ export default function MusicCanvas({ notes }) {
         ctx.fillRect(x, y, w, h);
       });
 
+      // chord overlay – guitar-like strings in purple matching current chord
+      if (chord !== undefined && chord !== null) {
+        const stringCount = 6;
+        ctx.save();
+        ctx.strokeStyle = "rgba(190,160,255,0.9)";
+        ctx.lineWidth = 2;
+
+        for (let i = 0; i < stringCount; i++) {
+          const y = ((i + 1) / (stringCount + 1)) * canvas.height;
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(canvas.width, y);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      }
+
       raf = requestAnimationFrame(draw);
     };
 
     draw();
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [chord]);
 
   return (
     <canvas
       ref={ref}
       width={720}
-      height={260}
-      className="rounded-xl bg-black/50"
+      height={200}
+      className="rounded-xl bg-black/60 shadow-lg"
     />
   );
 }

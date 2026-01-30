@@ -133,13 +133,29 @@ def separation(agent, neighbors, desired_distance=25, strength=0.15):
     return steer
 
 def random_color_palette():
-    palettes = [
-        [(255, 99, 71), (255, 178, 102), (255, 255, 153)],          # warm sunset
-        [(102, 178, 255), (0, 102, 204), (0, 51, 102)],             # blue ocean
-        [(255, 102, 178), (255, 153, 204), (204, 0, 102)],          # pink neon
-        [(102, 255, 178), (0, 153, 102), (0, 204, 153)],            # mint lush
-        [(255, 255, 255), (200, 200, 255), (150, 150, 255)]         # soft galaxy
-    ]
+    """Return a palette tuned to the current art mode (chaos/flow/composition)."""
+    base_palettes = {
+        # chaos / freeform – rich but softer
+        "chaos": [
+            [(255, 99, 71), (255, 178, 102), (255, 255, 153)],          # warm sunset
+            [(102, 178, 255), (0, 102, 204), (0, 51, 102)],             # blue ocean
+            [(255, 102, 178), (255, 153, 204), (204, 0, 102)],          # pink neon
+            [(102, 255, 178), (0, 153, 102), (0, 204, 153)],            # mint lush
+        ],
+        # flow / geometric – high-contrast neon
+        "flow": [
+            [(120, 240, 255), (60, 180, 255), (190, 120, 255)],         # cyan / violet neon
+            [(255, 80, 180), (255, 210, 80), (80, 255, 200)],           # magenta / gold / aqua
+        ],
+        # composition / mandala – deep, saturated
+        "composition": [
+            [(255, 140, 0), (255, 215, 0), (255, 69, 0)],               # festival
+            [(186, 85, 211), (148, 0, 211), (72, 61, 139)],             # deep mandala
+        ],
+    }
+
+    mode = ART_STATE.get("art_mode", "chaos")
+    palettes = base_palettes.get(mode, base_palettes["chaos"])
     import random
     return random.choice(palettes)
 
@@ -210,8 +226,9 @@ def shape_force(agent, t, shape):
     mem = agent._shape_mem
 
     if shape == "ring":
-        radius = 220 + math.sin(t * 0.2) * 60
-        angle = t * 0.3 + pos.x * 0.002
+        # clean orbital ring – tight radius band
+        radius = 220 + math.sin(t * 0.4) * 20
+        angle = t * 0.8 + pos.x * 0.001
         target = pygame.Vector2(
             cx + math.cos(angle) * radius,
             cy + math.sin(angle) * radius
@@ -219,8 +236,9 @@ def shape_force(agent, t, shape):
         vec = target - pos
 
     elif shape == "spiral":
-        r = 80 + t * 25
-        angle = t * 0.4 + pos.x * 0.003
+        # strong outward spiral from center
+        r = 40 + t * 30
+        angle = t * 0.7 + pos.y * 0.002
         target = pygame.Vector2(
             cx + math.cos(angle) * r,
             cy + math.sin(angle) * r
@@ -253,7 +271,8 @@ def shape_force(agent, t, shape):
             mem["star_timer"] = 0
 
         target = pygame.Vector2(*mem["star_target"])
-        vec = target - pos
+        # snap harder toward discrete stars
+        vec = (target - pos) * 1.5
 
     elif shape == "vortex":
         dir_vec = pygame.Vector2(cx, cy) - pos
@@ -261,10 +280,38 @@ def shape_force(agent, t, shape):
             dir_vec.rotate_ip(90)
             vec = dir_vec
 
+    elif shape == "orbit":
+        radius = 220 + 40 * math.sin(t * 0.4)
+        angle = t * 0.6 + (pos.y * 0.002)
+        target = pygame.Vector2(
+            cx + math.cos(angle) * radius,
+            cy + math.sin(angle) * radius
+        )
+        vec = target - pos
+
+    elif shape == "rays":
+        # sharp radial spokes in and out
+        angle = math.atan2(pos.y - cy, pos.x - cx)
+        step = (2 * math.pi) / ART_STATE.get("symmetry", 8)
+        snapped = round(angle / step) * step
+        radius = 260 + 40 * math.sin(t * 0.9)
+        target = pygame.Vector2(
+            cx + math.cos(snapped) * radius,
+            cy + math.sin(snapped) * radius
+        )
+        vec = target - pos
+
     else:
         vec = pygame.Vector2(0, 0)
-    
-    return vec * 0.005
+        
+    # scale differently for stronger shapes
+    strength = 0.005
+    if shape in ("spiral", "rays"):
+        strength = 0.007
+    if shape == "orbit":
+        strength = 0.004
+
+    return vec * strength
 
 class Agent:
     def __init__(self):
@@ -276,8 +323,8 @@ class Agent:
             random.uniform(-2, 2),
             random.uniform(-2, 2)
         )
-        self.color = random.choice(random_color_palette())
         self.color_palette = random_color_palette()
+        self.color = random.choice(self.color_palette)
         self.color_index = 0
         self.history = []
 
@@ -289,7 +336,16 @@ class Agent:
             self.vel.scale_to_length(1.2)
         self.edges()
         self.history.append(self.pos.copy())
-        if len(self.history) > 120:
+
+        # longer, denser trails for mandala / geometric
+        mode = ART_STATE.get("art_mode", "chaos")
+        if mode == "composition":
+            max_len = 260
+        elif mode == "flow":
+            max_len = 180
+        else:
+            max_len = 120
+        if len(self.history) > max_len:
             self.history.pop(0)
         self.color_index = (self.color_index + 0.02) % len(self.color_palette)
         self.color = self.color_palette[int(self.color_index)]

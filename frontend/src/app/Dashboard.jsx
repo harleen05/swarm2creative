@@ -69,30 +69,33 @@ export default function Dashboard() {
 
         <div className="flex-1 flex items-center justify-center px-16">
           <div className="relative" style={{ width: 800, height: 600 }}>
-          {activePanel === "architecture" ? (
-            <ArchitectureCanvas frame={state?.architecture ?? null} />
-          ) : (
-            <ArtCanvas
-              artFrame={state?.art_frame}
-              onCaptureReady={setCaptureFn}
-            />
-          )}
-
-            {state?.music_frame?.notes && (
-              <div className="absolute bottom-6 left-6">
-                <MusicCanvas notes={state.music_frame.notes} />
-              </div>
+            {activePanel === "architecture" ? (
+              <ArchitectureCanvas frame={state?.architecture ?? null} />
+            ) : activePanel === "music" ? (
+              <MusicCanvas
+                notes={state?.music_frame?.notes || []}
+                chord={state?.music_frame?.chord}
+              />
+            ) : (
+              <ArtCanvas
+                artFrame={state?.art_frame}
+                onCaptureReady={setCaptureFn}
+              />
             )}
 
-            {state?.music_frame?.chord !== undefined && (
-              <div className="absolute top-4 right-6 text-sm opacity-70 bg-black/40 px-3 py-1 rounded-lg">
-                Chord: {CHORDS[state.music_frame.chord]}
-              </div>
-            )}
-
+            {activePanel === "music" &&
+              state?.music_frame?.chord !== undefined && (
+                <div className="absolute top-4 right-6 text-sm opacity-70 bg-black/40 px-3 py-1 rounded-lg">
+                  Chord: {CHORDS[state.music_frame.chord]}
+                </div>
+              )}
           </div>
         </div>
-        <InsightPanel art={state?.art} />
+        <InsightPanel
+          artMeta={state?.art_frame?.meta}
+          architecture={state?.architecture}
+          musicFrame={state?.music_frame}
+        />
       </div>
       <PromptBar />
     </div>

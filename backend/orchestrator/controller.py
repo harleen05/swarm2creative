@@ -12,6 +12,8 @@ import random
 import math
 import pygame
 from music.runtime import MusicRuntime
+from architecture.engine import ARCH_STATE
+from backend.orchestrator.state import GLOBAL_STATE
 MUSIC_RUNTIME = MusicRuntime()
 
 def apply_parameters(params):
@@ -37,10 +39,9 @@ def apply_parameters(params):
         if music_frame:
             GLOBAL_STATE["music_frame"] = music_frame
 
-    try:
-        from_thread.run(manager.broadcast, GLOBAL_STATE)
-    except RuntimeError:
-        pass
+    # The detailed architecture frame (rooms/edges) is produced in
+    # `architecture.runtime.ArchitectureRuntime.step()` and pushed
+    # into GLOBAL_STATE by the frame loop; avoid overwriting it here.
 
 def _apply_art(p):
     if "emotion" in p:
@@ -131,19 +132,17 @@ def _apply_music(p):
         MUSIC_STATE["rhythm_intensity"] = p["rhythm_intensity"]["value"]
 
 def _apply_architecture(p):
-    if "spatial_openness" in p:
-        ARCH_STATE["spatial_openness"] = p["spatial_openness"]["value"]
+    if "architecture_intent" in p:
+        intent = p["architecture_intent"]
 
-    if "room_privacy" in p:
-        ARCH_STATE["room_privacy"] = p["room_privacy"]["value"]
+        if "spatial_openness" in intent:
+            ARCH_STATE["spatial_openness"] = intent["spatial_openness"]["value"]
 
-    if "circulation_style" in p:
-        ARCH_STATE["circulation_style"] = p["circulation_style"]["value"]
+        if "room_privacy" in intent:
+            ARCH_STATE["room_privacy"] = intent["room_privacy"]["value"]
 
-    GLOBAL_STATE["architecture"] = ARCH_STATE
-
-    print("ARCH_STATE NOW:", ARCH_STATE)
-    print("GLOBAL_STATE ARCH:", GLOBAL_STATE.get("architecture"))
+        if "circulation_style" in intent:
+            ARCH_STATE["circulation_style"] = intent["circulation_style"]["value"]
 
 def _apply_story(p):
     if "tone" in p and p["tone"]["confidence"] > 0.4:

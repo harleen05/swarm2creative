@@ -1,17 +1,91 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function ArchitectureCanvas({ frame }) {
   const ref = useRef(null);
+  const heightRef = useRef({});
+  const animRef = useRef(0);
+  const [sectionMode, setSectionMode] = useState(false);
+  const floorAnimRef = useRef(0);
+  const [, forceRedraw] = useState(0);
+  const musicEnergy = frame?.music_energy ?? 0.5;
+
+  const handleKey = e => {
+    const tag = document.activeElement?.tagName;
+    if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+  
+    if (e.key.toLowerCase() === "s") {
+      setSectionMode(prev => !prev);
+    }
+  };  
+
+  const OPENNESS_MAP = {
+    open: "open",
+    Open: "open",
+    OPEN: "open",
+  
+    medium: "medium",
+    Medium: "medium",
+    balanced: "medium",
+    Balanced: "medium",
+  
+    tight: "tight",
+    Tight: "tight",
+    compact: "tight",
+    Compact: "tight"
+  };
+  
+  const PRIVACY_MAP = {
+    low: "low",
+    Low: "low",
+    public: "low",
+  
+    medium: "medium",
+    Medium: "medium",
+  
+    high: "high",
+    High: "high",
+    private: "high"
+  };
+  
+  const CIRCULATION_MAP = {
+    linear: "linear",
+    Linear: "linear",
+  
+    centralized: "centralized",
+    Centralized: "centralized",
+    radial: "centralized",
+  
+    distributed: "distributed",
+    Distributed: "distributed",
+    networked: "distributed"
+  };  
+  
+  useEffect(() => {
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, []);  
 
   useEffect(() => {
     if (!frame) return;
+    let rafId;
 
+    const draw = () => {
+      animRef.current += 0.016;
+      rafId = requestAnimationFrame(draw);
+    };
+
+    draw();
     const canvas = ref.current;
     const ctx = canvas.getContext("2d");
 
-    const openness = frame.spatial_openness ?? "medium";
-    const privacy = frame.room_privacy ?? "medium";
-    const circulation = frame.circulation_style ?? "linear";
+    const openness =
+      OPENNESS_MAP[frame.spatial_openness] ?? "medium";
+
+    const privacy =
+      PRIVACY_MAP[frame.room_privacy] ?? "medium";
+
+    const circulation =
+      CIRCULATION_MAP[frame.circulation_style] ?? "linear";
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = "#0b0b15";
@@ -35,39 +109,14 @@ export default function ArchitectureCanvas({ frame }) {
     const cols = Math.ceil(Math.sqrt(roomCount));
     const rows = Math.ceil(roomCount / cols);
 
-    const startX = (canvas.width - cols * baseSize) / 2;
-    const startY = (canvas.height - rows * baseSize) / 2;
+    const gap =
+      openness === "open" ? 28 :
+      openness === "medium" ? 18 : 8;
+
+    const startX = (canvas.width - cols * (baseSize + gap)) / 2;
+    const startY = (canvas.height - rows * (baseSize + gap)) / 2;
 
     const rooms = [];
-
-    function drawRoom(ctx, r, z) {
-        const depth = z * 18;
-      
-        // shadow
-        ctx.fillStyle = "rgba(0,0,0,0.35)";
-        ctx.fillRect(r.x + depth, r.y + depth + r.h, r.w, 10);
-      
-        // top face
-        ctx.fillStyle = "rgba(200,190,255,0.55)";
-        ctx.fillRect(r.x - depth, r.y - depth, r.w, r.h);
-      
-        // side face
-        ctx.fillStyle = "rgba(90,80,150,0.55)";
-        ctx.beginPath();
-        ctx.moveTo(r.x - depth, r.y - depth);
-        ctx.lineTo(r.x, r.y);
-        ctx.lineTo(r.x + r.w, r.y);
-        ctx.lineTo(r.x + r.w - depth, r.y - depth);
-        ctx.closePath();
-        ctx.fill();
-      
-        // front face
-        ctx.fillStyle = "rgba(120,110,180,0.75)";
-        ctx.fillRect(r.x, r.y, r.w, r.h);
-      
-        ctx.strokeStyle = "rgba(255,255,255,0.9)";
-        ctx.strokeRect(r.x, r.y, r.w, r.h);
-      }
       
     // -----------------------------
     // CORE (HIERARCHY)
@@ -86,17 +135,20 @@ export default function ArchitectureCanvas({ frame }) {
     // -----------------------------
     // ROOMS (PUBLIC → PRIVATE)
     // -----------------------------
+    const layoutSeed = `${openness}_${privacy}_${circulation}`;
     let idx = 0;
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         if (idx >= roomCount) break;
 
-        const scale = 1 - Math.random() * variance;
+        const seed = (idx + 1) * (privacy === "high" ? 1.3 : privacy === "medium" ? 1.1 : 0.9);
+        const scale = 1 - (Math.sin(seed + layoutSeed.length) * 0.5 + 0.5) * variance;
+
         const w = baseSize * scale;
         const h = baseSize * scale;
 
-        const x = startX + c * baseSize + (baseSize - w) / 2;
-        const y = startY + r * baseSize + (baseSize - h) / 2;
+        const x = startX + c * (baseSize + gap) + (baseSize - w) / 2;
+        const y = startY + r * (baseSize + gap) + (baseSize - h) / 2;
 
         const isPrivate = privacy === "high" && idx % 2 === 0;
 
@@ -107,7 +159,11 @@ export default function ArchitectureCanvas({ frame }) {
                 ? 1
                 : 2;
 
-        rooms.push({ x, y, w, h, private: isPrivate, level });
+        const program =
+          level === 3 ? "Core" :
+          isPrivate ? "Private" : "Public";
+
+        rooms.push({ x, y, w, h, private: isPrivate, level, program });
 
         ctx.fillStyle = isPrivate
             ? "rgba(70,70,110,0.65)"
@@ -123,6 +179,14 @@ export default function ArchitectureCanvas({ frame }) {
         ctx.lineWidth = 2;
         ctx.strokeRect(x, y, w, h);
 
+        // ---- PROGRAM LABEL ----
+        ctx.fillStyle = "rgba(255,255,255,0.85)";
+        ctx.font = "11px monospace";
+        ctx.fillText(
+          program,
+          x + 6,
+          y + 14
+        );
         // DOOR
         ctx.fillStyle = "rgba(255,255,255,0.9)";
         ctx.strokeStyle = "rgba(220,240,255,0.9)";
@@ -158,12 +222,21 @@ export default function ArchitectureCanvas({ frame }) {
     rooms.forEach(r => {
         if (r === core) return;
       
-        const height =
-            r.level === 3 ? 48 :
-            r.level === 2 ? 30 : 18;
+        const targetHeight =
+          r.level === 3 ? 64 :
+          r.level === 2 ? 40 : 22;
+
+        const key = `${r.x}_${r.y}`;
+
+        if (!heightRef.current[key]) {
+          heightRef.current[key] = targetHeight;
+        }
+
+        heightRef.current[key] += (targetHeight - heightRef.current[key]) * 0.08;
+        const height = heightRef.current[key];
       
-        const tx = r.x - height * 0.6;
-        const ty = r.y - height * 0.6;
+        const tx = r.x - height * 0.55;
+        const ty = r.y - height * 0.75;
         
         // --- CAST SHADOW ---
         ctx.fillStyle = "rgba(0,0,0,0.35)";
@@ -199,9 +272,34 @@ export default function ArchitectureCanvas({ frame }) {
         ctx.fillStyle = "rgba(120,110,180,0.65)";
         ctx.fillRect(r.x, r.y, r.w, r.h);
       
+        if (sectionMode && r.level >= 2) {
+          ctx.fillStyle = "rgba(20,20,40,0.85)";
+          ctx.fillRect(
+            r.x,
+            r.y + r.h * 0.45,
+            r.w,
+            r.h * 0.55
+          );
+        }
+
         ctx.strokeStyle = "rgba(255,255,255,0.85)";
         ctx.lineWidth = 1.5;
         ctx.strokeRect(r.x, r.y, r.w, r.h);
+        
+        // ---- SECTION CUT ----
+        if (sectionMode && r.level >= 2) {
+          ctx.fillStyle = "rgba(30,30,50,0.75)";
+          ctx.fillRect(r.x, r.y + r.h * 0.45, r.w, r.h * 0.55);
+        }
+
+        // ---- ZONING OVERLAY ----
+        if (r.private) {
+          ctx.fillStyle = "rgba(120,80,160,0.35)";
+          ctx.fillRect(r.x, r.y, r.w, r.h);
+        } else {
+          ctx.fillStyle = "rgba(80,160,200,0.18)";
+          ctx.fillRect(r.x, r.y, r.w, r.h);
+        }
     });      
 
     // CORE SHADOW (grounds the building)
@@ -219,8 +317,8 @@ export default function ArchitectureCanvas({ frame }) {
     ctx.fill();
 
     // CORE MASS
-    ctx.fillStyle = "rgba(140,180,255,0.55)";
-    ctx.fillRect(core.x, core.y, core.w, core.h);
+    ctx.fillStyle = "rgba(160,200,255,0.65)";
+    ctx.fillRect(core.x, core.y - 14, core.w, core.h + 14);
 
     // CORE EDGE
     ctx.strokeStyle = "rgba(255,255,255,1)";
@@ -236,25 +334,33 @@ export default function ArchitectureCanvas({ frame }) {
     // ---- CORRIDORS AS SPACE ----
     ctx.fillStyle = "rgba(100,160,220,0.18)";
 
-    rooms.forEach(r => {
-        if (r === core) return;
-
-        const cx = core.x + core.w / 2;
-        const cy = core.y + core.h / 2;
-
-        const rx = r.x + r.w / 2;
-        const ry = r.y + r.h / 2;
-
-        const w = Math.abs(rx - cx);
-        const h = Math.abs(ry - cy);
-
+    rooms.forEach((r, i) => {
+      if (r === core) return;
+    
+      const cx = core.x + core.w / 2;
+      const cy = core.y + core.h / 2;
+      const rx = r.x + r.w / 2;
+      const ry = r.y + r.h / 2;
+    
+      if (circulation === "centralized") {
         ctx.fillRect(
-            Math.min(cx, rx) - 8,
-            Math.min(cy, ry) - 8,
-            w + 16,
-            h + 16
+          Math.min(cx, rx) - 8,
+          Math.min(cy, ry) - 8,
+          Math.abs(rx - cx) + 16,
+          Math.abs(ry - cy) + 16
         );
-    });
+      }
+    
+      if (circulation === "linear" && i > 0) {
+        const prev = rooms[i - 1];
+        ctx.fillRect(
+          prev.x + prev.w / 2,
+          prev.y + prev.h / 2,
+          rx - (prev.x + prev.w / 2),
+          16
+        );
+      }
+    });    
 
     ctx.beginPath();
     ctx.arc(
@@ -269,24 +375,91 @@ export default function ArchitectureCanvas({ frame }) {
     ctx.strokeStyle = "rgba(255,255,255,0.9)";
     ctx.lineWidth = 3;
     ctx.strokeRect(core.x, core.y, core.w, core.h);
-    
+
+    // ---- CIRCULATION DIRECTION ----
+    ctx.strokeStyle = "rgba(200,240,255,0.85)";
+    ctx.lineWidth = 2;
+
+    rooms.forEach(r => {
+      if (r === core) return;
+
+      const cx = core.x + core.w / 2;
+      const cy = core.y + core.h / 2;
+      const rx = r.x + r.w / 2;
+      const ry = r.y + r.h / 2;
+
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(
+        cx + (rx - cx) * 0.85,
+        cy + (ry - cy) * 0.85
+      );
+      ctx.stroke();
+
+      // arrow head
+      ctx.beginPath();
+      ctx.arc(rx, ry, 3, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // ---- STRUCTURAL GRID ----
+    ctx.strokeStyle = "rgba(255,255,255,0.05)";
+    ctx.lineWidth = 1;
+
+    for (let x = startX; x < startX + cols * baseSize; x += baseSize) {
+      ctx.beginPath();
+      ctx.moveTo(x, startY);
+      ctx.lineTo(x, startY + rows * baseSize);
+      ctx.stroke();
+    }
+
+    for (let y = startY; y < startY + rows * baseSize; y += baseSize) {
+      ctx.beginPath();
+      ctx.moveTo(startX, y);
+      ctx.lineTo(startX + cols * baseSize, y);
+      ctx.stroke();
+    }
+
     // -----------------------------
     // LABELS
     // -----------------------------
+    
     ctx.fillStyle = "rgba(255,255,255,0.85)";
     ctx.font = "13px monospace";
     ctx.fillText(`Openness: ${openness}`, 20, 30);
     ctx.fillText(`Privacy: ${privacy}`, 20, 50);
     ctx.fillText(`Circulation: ${circulation}`, 20, 70);
+    ctx.fillText("Press S → Section View", canvas.width - 200, 50);
+    ctx.fillText(
+      sectionMode ? "SECTION MODE (S)" : "PLAN MODE",
+      canvas.width - 200,
+      30
+    );
+    ctx.save();
+    return () => cancelAnimationFrame(rafId);
+  }, [frame, sectionMode]);
 
-  }, [frame]);
-
+  function exportCanvas() {
+    const link = document.createElement("a");
+    link.download = "architecture.png";
+    link.href = ref.current.toDataURL("image/png");
+    link.click();
+  }
+  
   return (
-    <canvas
-      ref={ref}
-      width={800}
-      height={600}
-      className="rounded-xl bg-black"
-    />
-  );
+    <>
+      <canvas
+        ref={ref}
+        width={800}
+        height={600}
+        className="rounded-xl bg-black"
+      />
+      <button
+        onClick={exportCanvas}
+        className="absolute bottom-6 right-6 px-3 py-1 text-xs bg-white/10 text-white rounded"
+      >
+        Export
+      </button>
+    </>
+  );  
 }

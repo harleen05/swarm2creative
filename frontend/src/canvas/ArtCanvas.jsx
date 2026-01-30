@@ -23,7 +23,17 @@ export default function ArtCanvas({ artFrame, onCaptureReady }) {
     window.captureArt = () => canvas.toDataURL("image/png");
     
     function draw() {
-      ctx.fillStyle = "rgba(0, 0, 0, 0.06)";
+      const mode = artFrame.meta?.art_mode;
+
+      // background fade – make mandala linger more
+      let fade = 0.06;
+      if (mode === "composition") {
+        fade = 0.02; // slower fade for mandala
+      } else if (mode === "flow") {
+        fade = 0.04; // slightly crisper trails for geometric
+      }
+
+      ctx.fillStyle = `rgba(0, 0, 0, ${fade})`;
       ctx.fillRect(0, 0, WIDTH, HEIGHT);
       ctx.strokeStyle = "rgba(255,0,0,0.4)";
       ctx.beginPath();
@@ -36,11 +46,12 @@ export default function ArtCanvas({ artFrame, onCaptureReady }) {
       artFrame.agents.forEach(agent => {
         const [r, g, b] = agent.color;
 
-        // draw trail
-        const mode = artFrame.meta?.art_mode;
-        if (mode !== "flow") {
-          ctx.strokeStyle = `rgba(${r},${g},${b},0.12)`;
-          ctx.lineWidth = 1.2;
+        // draw trail – always on, styled per mode
+        if (agent.trail && agent.trail.length > 1) {
+          const alpha = mode === "composition" ? 0.22 : mode === "flow" ? 0.18 : 0.12;
+          const width = mode === "composition" ? 1.6 : mode === "flow" ? 1.4 : 1.2;
+          ctx.strokeStyle = `rgba(${r},${g},${b},${alpha})`;
+          ctx.lineWidth = width;
           ctx.beginPath();
           agent.trail.forEach((p, i) => {
             if (i === 0) ctx.moveTo(p[0], p[1]);
@@ -49,8 +60,8 @@ export default function ArtCanvas({ artFrame, onCaptureReady }) {
           ctx.stroke();
         }
 
-        // glow head
-        ctx.shadowBlur = 8;
+        // glow head – stronger neon in geometric (flow) mode
+        ctx.shadowBlur = mode === "flow" ? 18 : 10;
         ctx.shadowColor = `rgb(${r},${g},${b})`;
         ctx.fillStyle = `rgb(${r},${g},${b})`;
         const vx = agent.trail.length > 1
@@ -68,7 +79,7 @@ export default function ArtCanvas({ artFrame, onCaptureReady }) {
           artFrame.meta.art_mode === "flow" ? 10 : 6;
 
         ctx.strokeStyle = `rgb(${r},${g},${b})`;
-        ctx.lineWidth = 3;
+        ctx.lineWidth = mode === "flow" ? 3.8 : 3;
         ctx.beginPath();
         ctx.moveTo(agent.x - nx * strokeLen, agent.y - ny * strokeLen);
         ctx.lineTo(agent.x + nx * strokeLen, agent.y + ny * strokeLen);
