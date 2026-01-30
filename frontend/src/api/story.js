@@ -1,5 +1,5 @@
 export async function getStory() {
-  const res = await fetch("http://127.0.0.1:8000/story", {
+  const res = await fetch("https://swarm2creative.onrender.com/story", {
     method: "GET",
     headers: { "Content-Type": "application/json" },
   });
@@ -14,7 +14,7 @@ export async function getStory() {
 }
 
 export async function generateStory(prompt = null, enhance = false, options = {}) {
-  const res = await fetch("http://127.0.0.1:8000/story/generate", {
+  const res = await fetch("https://swarm2creative.onrender.com/story/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -38,7 +38,7 @@ export async function generateStory(prompt = null, enhance = false, options = {}
 }
 
 export async function getFullStory() {
-  const res = await fetch("http://127.0.0.1:8000/story/full", {
+  const res = await fetch("https://swarm2creative.onrender.com/story/full", {
     method: "GET",
     headers: { "Content-Type": "application/json" },
   });

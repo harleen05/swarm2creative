@@ -1,5 +1,5 @@
 export async function generateFigurativeImage(optionalPrompt) {
-  const res = await fetch("http://127.0.0.1:8000/generate-image", {
+  const res = await fetch("https://swarm2creative.onrender.com/generate-image", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
