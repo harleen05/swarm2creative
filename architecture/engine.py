@@ -17,9 +17,9 @@ ROOM_AGE = {}
 ROOM_TYPES = {}
 
 ARCH_STATE = {
+    "spatial_openness": "medium",
     "room_privacy": "medium",
-    "spatial_openness": "balanced",
-    "door_attraction": 1.0
+    "circulation_style": "linear"
 }
 
 ARCHITECTURE = {
