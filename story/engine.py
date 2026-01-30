@@ -16,7 +16,9 @@ SEPARATION_STRENGTH = 0.08
 STORY_STATE = {
     "tone": "neutral",
     "pace": "moderate",
-    "mood": "neutral"
+    "mood": "neutral",
+    "word_limit": 500,
+    "paragraph_count": 5
 }
 
 def limit_speed(v, max_speed):

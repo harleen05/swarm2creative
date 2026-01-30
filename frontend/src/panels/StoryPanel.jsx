@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { generateStory } from "../api/story";
 import { sendIntent } from "../api/interpret";
@@ -29,6 +29,7 @@ export default function StoryPanel({ story }) {
   
     const meta = story.meta || {};
     const events = story.story_events || [];
+    const updateTimeoutRef = useRef(null);
   
     const handleEnhance = async () => {
       setEnhancing(true);
@@ -47,6 +48,38 @@ export default function StoryPanel({ story }) {
         setEnhancing(false);
       }
     };
+
+    // Auto-update story when word limit or paragraph count changes (debounced)
+    useEffect(() => {
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
+      
+      // Only update if there are story events (story exists)
+      if (events.length > 0) {
+        updateTimeoutRef.current = setTimeout(async () => {
+          try {
+            // Update story with new constraints (without LLM enhancement)
+            await generateStory(null, false, {
+              tone,
+              mood,
+              pace,
+              wordLimit,
+              paragraphCount
+            });
+          } catch (error) {
+            console.error("Failed to update story constraints:", error);
+          }
+        }, 1000); // 1 second debounce
+      }
+      
+      return () => {
+        if (updateTimeoutRef.current) {
+          clearTimeout(updateTimeoutRef.current);
+        }
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [wordLimit, paragraphCount]); // Only trigger on these changes
 
     const updateTone = (newTone) => {
       setTone(newTone);

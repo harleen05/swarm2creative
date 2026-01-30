@@ -4,9 +4,11 @@ from backend.orchestrator.ws_manager import manager
 from art.runtime import ART_RUNTIME
 from architecture import ARCHITECTURE_RUNTIME
 from story.runtime import StoryRuntime
+from music.runtime import MusicRuntime
 from anyio import from_thread
 
 STORY_RUNTIME = StoryRuntime()
+MUSIC_RUNTIME = MusicRuntime()
 
 def detect_collisions(agents_data):
     """Detect collisions between agents for story events"""
@@ -38,6 +40,11 @@ def frame_loop():
 
         if art_frame:
             GLOBAL_STATE["art_frame"] = art_frame
+            
+            # Update music frame based on art frame
+            music_frame = MUSIC_RUNTIME.step(art_frame)
+            if music_frame:
+                GLOBAL_STATE["music_frame"] = music_frame
             
             # Extract events from art frame for story generation
             agents = art_frame.get("agents", [])

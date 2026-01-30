@@ -6,6 +6,7 @@ import json
 
 from backend.orchestrator.frame_loop import STORY_RUNTIME
 from backend.orchestrator.state import GLOBAL_STATE
+from backend.orchestrator.ws_manager import manager
 from story.engine import STORY_STATE
 
 router = APIRouter()
@@ -400,7 +401,7 @@ def get_story():
 
 
 @router.post("/story/generate")
-def generate_story(payload: StoryEnhancementRequest):
+async def generate_story(payload: StoryEnhancementRequest):
     """
     Generate or enhance story using LLM.
     """
@@ -423,6 +424,10 @@ def generate_story(payload: StoryEnhancementRequest):
         STORY_STATE["pace"] = payload.pace
     if payload.mood:
         STORY_STATE["mood"] = payload.mood
+    if payload.word_limit is not None:
+        STORY_STATE["word_limit"] = payload.word_limit
+    if payload.paragraph_count is not None:
+        STORY_STATE["paragraph_count"] = payload.paragraph_count
     
     if payload.enhance or payload.prompt:
         # Get base story for context
@@ -451,13 +456,34 @@ def generate_story(payload: StoryEnhancementRequest):
         
         GLOBAL_STATE["story_frame"] = story_frame
         
+        # Broadcast updated state via WebSocket so frontend receives the update
+        try:
+            await manager.broadcast(GLOBAL_STATE)
+        except Exception as e:
+            print(f"⚠️ Could not broadcast story update: {e}")
+        
         return {
             "status": "ok",
             "story": story_frame
         }
     else:
-        # Return current story
+        # Return current story with constraints applied
+        # This ensures word_limit and paragraph_count are respected even without LLM enhancement
         full_story = STORY_RUNTIME.generate_full_story()
+        
+        # Update GLOBAL_STATE with the constrained story
+        if full_story.get("paragraphs"):
+            story_frame = GLOBAL_STATE.get("story_frame", {})
+            story_frame["paragraphs"] = full_story["paragraphs"]
+            story_frame["story_events"] = full_story.get("story_events", [])
+            GLOBAL_STATE["story_frame"] = story_frame
+            
+            # Broadcast updated state via WebSocket
+            try:
+                await manager.broadcast(GLOBAL_STATE)
+            except Exception as e:
+                print(f"⚠️ Could not broadcast story update: {e}")
+        
         return {
             "status": "ok",
             "story": full_story

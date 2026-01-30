@@ -14,11 +14,16 @@ import ArchitectureCanvas from "../canvas/ArchitectureCanvas";
 import StoryPanel from "../panels/StoryPanel";
 import StoryCanvas from "../canvas/StoryCanvas";
 import {useBackendState} from "../hooks/useBackendState";
+import {useWebSocket} from "../hooks/useWebSocket";
 
 const CHORDS = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
 
 export default function Dashboard() {
-  const { state, refresh } = useBackendState();
+  // Use WebSocket for real-time updates, fallback to REST API for initial state
+  const wsState = useWebSocket();
+  const { state: restState, refresh } = useBackendState();
+  // Prefer WebSocket state if available, otherwise use REST state
+  const state = wsState || restState;
   const [activePanel, setActivePanel] = useState(null);
   const [captureFn, setCaptureFn] = useState(null);
   const liveNotesRef = useRef([]);
