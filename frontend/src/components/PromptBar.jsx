@@ -1,4 +1,7 @@
+// src/components/PromptBar.jsx
+
 import { useState } from "react";
+import { sendIntent } from "../api/interpret";
 
 export default function PromptBar() {
   const [text, setText] = useState("");
@@ -6,16 +9,17 @@ export default function PromptBar() {
   async function sendPrompt() {
     if (!text.trim()) return;
 
-    await fetch(`${HTTP_BASE}/interpret`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    
-    refresh(); 
-    setText("");
-  }
+    const payload = {
+      text
+    };
 
+    try {
+      await sendIntent(payload);
+      setText("");
+    } catch (err) {
+      console.error("Prompt failed:", err);
+    }
+  }
   return (
     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[720px] bg-glass backdrop-blur-xl border border-white/10 rounded-2xl px-4 py-3 flex gap-3">
       <input
