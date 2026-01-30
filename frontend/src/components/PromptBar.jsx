@@ -6,12 +6,13 @@ export default function PromptBar() {
   async function sendPrompt() {
     if (!text.trim()) return;
 
-    await fetch("http://127.0.0.1:8000/interpret", {
+    await fetch(`${HTTP_BASE}/interpret`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text })
+      body: JSON.stringify(payload)
     });
-
+    
+    refresh(); 
     setText("");
   }
 

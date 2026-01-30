@@ -4,7 +4,6 @@ import SmartDock from "../components/SmartDock";
 import InsightPanel from "../components/InsightPanel";
 import ArtCanvas from "../canvas/ArtCanvas";
 import MusicCanvas from "../canvas/MusicCanvas";
-import { useWebSocket } from "../hooks/useWebSocket";
 import ArtPanel from "../panels/ArtPanel";
 import MusicPanel from "../panels/MusicPanel";
 import { AnimatePresence } from "framer-motion";
@@ -14,12 +13,12 @@ import ArchitecturePanel from "../panels/ArchitecturePanel";
 import ArchitectureCanvas from "../canvas/ArchitectureCanvas";
 import StoryPanel from "../panels/StoryPanel";
 import StoryCanvas from "../canvas/StoryCanvas";
+import {useBackendState} from "../hooks/useBackendState";
 
 const CHORDS = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
 
 export default function Dashboard() {
-  const state = useWebSocket("ws://127.0.0.1:8000/ws");
-
+  const { state, refresh } = useBackendState();
   const [activePanel, setActivePanel] = useState(null);
   const [captureFn, setCaptureFn] = useState(null);
   const liveNotesRef = useRef([]);

@@ -11,8 +11,10 @@ from backend.api.story import router as story_router
 from backend.orchestrator.frame_loop import frame_loop
 from art.runtime import ART_RUNTIME
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from backend.api.state import router as state_router
 
 app = FastAPI(title="Swarm2Creative Backend")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -25,7 +27,7 @@ app.add_middleware(
     TrustedHostMiddleware,
     allowed_hosts=["*"]
 )
-
+app.include_router(state_router)
 app.include_router(ws_router)
 app.include_router(chat_router)
 app.include_router(image_router)
