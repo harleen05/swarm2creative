@@ -12,6 +12,8 @@ import PromptBar from "../components/PromptBar";
 import { playNotes } from "../audio/MusicEngine";
 import ArchitecturePanel from "../panels/ArchitecturePanel";
 import ArchitectureCanvas from "../canvas/ArchitectureCanvas";
+import StoryPanel from "../panels/StoryPanel";
+import StoryCanvas from "../canvas/StoryCanvas";
 
 const CHORDS = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
 
@@ -64,6 +66,9 @@ export default function Dashboard() {
             {activePanel === "architecture" && (
               <ArchitecturePanel key="architecture" />
             )}
+            {activePanel === "story" && (
+              <StoryPanel story={state?.story_frame} />
+            )}
           </AnimatePresence>
         </div>
 
@@ -76,6 +81,8 @@ export default function Dashboard() {
                 notes={state?.music_frame?.notes || []}
                 chord={state?.music_frame?.chord}
               />
+            ) : activePanel === "story" ? (
+              <StoryCanvas frame={state?.story_frame} />
             ) : (
               <ArtCanvas
                 artFrame={state?.art_frame}

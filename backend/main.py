@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.api.chat import router as chat_router
 from backend.api.ws import router as ws_router
 from backend.api.image import router as image_router
+from backend.api.story import router as story_router
 from backend.orchestrator.frame_loop import frame_loop
 from art.runtime import ART_RUNTIME
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -28,6 +29,7 @@ app.add_middleware(
 app.include_router(ws_router)
 app.include_router(chat_router)
 app.include_router(image_router)
+app.include_router(story_router)
 
 @app.on_event("startup")
 def start_background_loops():

@@ -15,7 +15,8 @@ SEPARATION_STRENGTH = 0.08
 # ----------------------------------------
 STORY_STATE = {
     "tone": "neutral",
-    "pace": "moderate"
+    "pace": "moderate",
+    "mood": "neutral"
 }
 
 def limit_speed(v, max_speed):

@@ -119,6 +119,7 @@ Schema:
   "story": {
     "tone": { "value": "", "confidence": 0.0 },
     "pace_shift": { "value": "", "confidence": 0.0 },
+    "mood": { "value": "", "confidence": 0.0 },
     "narrative_focus": { "value": "", "confidence": 0.0 }
   }
 }

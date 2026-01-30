@@ -14,6 +14,7 @@ import pygame
 from music.runtime import MusicRuntime
 from architecture.engine import ARCH_STATE
 from backend.orchestrator.state import GLOBAL_STATE
+from backend.orchestrator.frame_loop import STORY_RUNTIME
 MUSIC_RUNTIME = MusicRuntime()
 
 def apply_parameters(params):
@@ -39,9 +40,7 @@ def apply_parameters(params):
         if music_frame:
             GLOBAL_STATE["music_frame"] = music_frame
 
-    # The detailed architecture frame (rooms/edges) is produced in
-    # `architecture.runtime.ArchitectureRuntime.step()` and pushed
-    # into GLOBAL_STATE by the frame loop; avoid overwriting it here.
+    # Story frame is now updated in frame_loop.py
 
 def _apply_art(p):
     if "emotion" in p:
@@ -150,3 +149,6 @@ def _apply_story(p):
 
     if "pace_shift" in p and p["pace_shift"]["confidence"] > 0.4:
         STORY_STATE["pace"] = p["pace_shift"]["value"]
+    
+    if "mood" in p and p["mood"]["confidence"] > 0.4:
+        STORY_STATE["mood"] = p["mood"]["value"]
