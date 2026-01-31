@@ -228,10 +228,3 @@ class StoryMapper:
         story.append({"type": "paragraph", "content": "Though governed by simple rules, the swarm revealed complex relationships—a reminder that stories can emerge even from mathematics. Each collision, each alliance, each moment of tension contributed to a narrative that transcended the sum of its parts."})
 
         return story
-
-
-
-
-
-
-
