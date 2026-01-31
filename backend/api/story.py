@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from typing import Optional
 import requests
 import json
-
+import os
 from backend.orchestrator.frame_loop import STORY_RUNTIME
 from backend.orchestrator.state import GLOBAL_STATE
 from backend.orchestrator.ws_manager import manager
@@ -11,8 +11,8 @@ from story.engine import STORY_STATE
 
 router = APIRouter()
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL = "llama3:latest"
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
 
 def _count_words(text):
