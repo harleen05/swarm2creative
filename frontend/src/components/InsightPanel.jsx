@@ -7,7 +7,7 @@ export default function InsightPanel({ artMeta, architecture, musicFrame }) {
       : null;
 
   return (
-    <div className="w-[320px] bg-glass backdrop-blur-xl border-l border-white/10 px-6 py-8 text-sm space-y-6">
+    <div className="w-[320px] h-full min-h-0 flex flex-col bg-glass backdrop-blur-xl border-l border-white/10 px-6 py-8 text-sm space-y-6 shrink-0 overflow-auto">
       <h3 className="text-lg font-semibold mb-2">System State</h3>
 
       <section>
