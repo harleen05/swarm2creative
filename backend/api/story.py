@@ -248,108 +248,211 @@ def enhance_story_with_llm(story_events, tone="neutral", pace="moderate", mood="
     else:
         events_context = f"Events:\n{limited_context}"
     
-    prompt = f"""Create a {word_limit}-word story in exactly {paragraph_count} paragraphs.
+    # Define very distinct style templates
+    style_templates = {
+        "dramatic": "Use INTENSE, gripping language. Short punchy sentences. Exclamation marks! Vivid action verbs. High stakes. Tension in every line.",
+        "poetic": "Use flowing, lyrical prose. Rich metaphors. Sensory imagery. Rhythm in sentences. Beauty in description. Elegant word choices.",
+        "mysterious": "Use cryptic, enigmatic language. Questions without answers. Shadows and secrets. Whispered hints. Unknown forces at work.",
+        "epic": "Use grand, sweeping language. Legendary scale. Heroic deeds. Ancient wisdom. The fate of worlds hangs in the balance.",
+        "intimate": "Use close, personal language. Quiet moments. Inner thoughts. Gentle observations. The small details that matter.",
+        "neutral": "Use clear, balanced prose. Straightforward narration. Neither too dramatic nor too subtle."
+    }
+    
+    mood_templates = {
+        "hopeful": "The overall feeling is OPTIMISTIC. Light breaking through. Promise of better things. Warmth and encouragement.",
+        "melancholic": "The overall feeling is SAD and wistful. Loss pervades. Bittersweet memories. A sense of what could have been.",
+        "tense": "The overall feeling is ANXIOUS and on-edge. Something is wrong. Danger lurks. Hearts racing. Breath held.",
+        "triumphant": "The overall feeling is VICTORIOUS. Celebration. Achievement. Glory earned. Pride and joy.",
+        "somber": "The overall feeling is SERIOUS and heavy. Grave matters. Solemn reflection. Weight of decisions.",
+        "neutral": "The overall feeling is BALANCED. Neither too happy nor too sad."
+    }
+    
+    pace_templates = {
+        "slow": "SLOW pace: Long, flowing sentences. Detailed descriptions. Take time with each moment. Contemplative pauses.",
+        "moderate": "MODERATE pace: Mix of sentence lengths. Balance action and reflection. Steady rhythm.",
+        "fast": "FAST pace: SHORT sentences. Quick cuts. Rapid action. No time to breathe. Go go go!"
+    }
+    
+    style_instruction = style_templates.get(tone, style_templates["neutral"])
+    mood_instruction = mood_templates.get(mood, mood_templates["neutral"])
+    pace_instruction = pace_templates.get(pace, pace_templates["moderate"])
+    
+    prompt = f"""Write a richly detailed, immersive story about a digital swarm simulation.
 
-Tone: {tone}, Mood: {mood}, Pace: {pace}
-{f"User request: {user_prompt}" if user_prompt else ""}
+**CRITICAL STYLE REQUIREMENTS - FOLLOW EXACTLY:**
+{style_instruction}
+{mood_instruction}
+{pace_instruction}
 
+**LENGTH REQUIREMENTS (CRITICAL):**
+- Total word count: You must aim for **{word_limit} words** or more. Do not write less.
+- Total paragraphs: EXACTLY {paragraph_count} paragraphs.
+- **Words per paragraph:** Each paragraph MUST be roughly **{words_per_paragraph} to {words_per_paragraph + 50} words**.
+- **DETAIL:** Do not summarize. Expand every scene. Use long, descriptive sentences to meet the word count.
+- If the story feels too short, ADD MORE DESCRIPTION to the middle sections.
+
+**REQUIRED STRUCTURE:**
+You MUST include these sections with headers:
+1. 🌱 INTRODUCTION - Set the scene, introduce the swarm and its digital world.
+2. 📖 RISING ACTION - Build tension as agents begin to interact. Determine the conflict.
+3. ⚡ CLIMAX - The peak moment of conflict or transformation. Make this the longest section.
+4. 🔄 RESOLUTION - How the swarm adapts and changes.
+5. 🧠 EPILOGUE - Philosophical reflection on emergence and digital life.
+
+**CONTEXT:**
 {events_context}
 
-Return JSON only:
+**OUTPUT FORMAT:**
+Return ONLY valid JSON:
 {{
   "paragraphs": [
     {{"type": "header", "content": "🌱 INTRODUCTION"}},
-    {{"type": "paragraph", "content": "..."}},
-    {{"type": "paragraph", "content": "..."}}
+    {{"type": "paragraph", "content": "A detailed, evocative opening paragraph ({words_per_paragraph} words)..."}},
+    {{"type": "header", "content": "📖 RISING ACTION"}},
+    {{"type": "paragraph", "content": "Tension builds ({words_per_paragraph} words)..."}},
+    {{"type": "header", "content": "⚡ CLIMAX"}},
+    {{"type": "paragraph", "content": "The peak moment, fully described ({words_per_paragraph} words)..."}},
+    {{"type": "header", "content": "🔄 RESOLUTION"}},
+    {{"type": "paragraph", "content": "Change occurs ({words_per_paragraph} words)..."}},
+    {{"type": "header", "content": "🧠 EPILOGUE"}},
+    {{"type": "paragraph", "content": "Reflection on meaning ({words_per_paragraph} words)..."}}
   ]
 }}
 
-Requirements:
-- Exactly {paragraph_count} paragraphs (not counting headers)
-- Total: ~{word_limit} words
-- Tone: {tone}, Mood: {mood}, Pace: {pace}
-- JSON only, no other text
+CRITICAL: Write {word_limit} words total. Make the {tone} tone and {mood} mood unmistakable in every sentence!
 """
     
+    
+    # Check if we have API key
+    if not GROQ_API_KEY:
+        print("⚠️ No GROQ_API_KEY found. Falling back to base story.")
+        full_story = STORY_RUNTIME.generate_full_story()
+        constrained = _enforce_constraints(
+            full_story.get("paragraphs", []),
+            word_limit,
+            paragraph_count
+        )
+        return {"paragraphs": constrained}
+
     try:
-        # Increase timeout and add connection timeout
+        # Groq API endpoint
+        url = "https://api.groq.com/openai/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "model": MODEL,
+            "messages": [
+                {"role": "system", "content": "You are a creative storyteller who writes detailed, engaging narratives about digital swarm simulations. You MUST return valid JSON only."},
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.8,
+            "max_tokens": word_limit * 3  # Allow enough tokens
+        }
+
+        print(f"🚀 Sending request to Groq (Model: {MODEL}, Target: {word_limit} words)...")
+        import time
+        start_time = time.time()
+        
         response = requests.post(
-            OLLAMA_URL,
-            json={
-                "model": MODEL,
-                "prompt": prompt,
-                "stream": False,
-                "options": {
-                    "temperature": 0.8,
-                    "top_p": 0.9,
-                    "num_predict": word_limit // 2  # Limit tokens to prevent long generation
-                }
-            },
-            timeout=(10, 120)  # 10s connection, 120s read timeout
+            url,
+            headers=headers,
+            json=payload,
+            timeout=(10, 300) # Increased to 300s for long stories
         )
         
-        raw_output = response.json().get("response", "")
+        duration = time.time() - start_time
+        print(f"⏱️ LLM request took {duration:.2f}s")
+        
+        response.raise_for_status()
+        data = response.json()
+        raw_output = data["choices"][0]["message"]["content"]
+        print(f"📝 Raw LLM output length: {len(raw_output)} chars")
         
         # Extract JSON from response
         import re
-        match = re.search(r"\{[\s\S]*\}", raw_output)
-        if match:
-            json_str = match.group(0)
-            parsed = json.loads(json_str)
-            if "paragraphs" in parsed:
-                # Process and validate paragraphs
-                enhanced_paragraphs = []
-                paragraph_items = []
-                
-                for para in parsed["paragraphs"]:
-                    if isinstance(para, dict):
-                        para_type = para.get("type", "paragraph")
-                        para_content = para.get("content", "").strip()
-                        if para_content:
-                            enhanced_paragraphs.append({
-                                "type": para_type,
-                                "content": para_content,
-                                "enhanced": True
-                            })
-                            if para_type == "paragraph":
-                                paragraph_items.append(para_content)
-                    else:
-                        # Handle string format
-                        content = str(para).strip()
-                        if content:
-                            enhanced_paragraphs.append({
-                                "type": "paragraph",
-                                "content": content,
-                                "enhanced": True
-                            })
-                            paragraph_items.append(content)
-                
-                # Post-process to enforce word limit and paragraph count
-                print(f"📊 Before constraints: {len(enhanced_paragraphs)} items, word_limit={word_limit}, paragraph_count={paragraph_count}")
-                enhanced_paragraphs = _enforce_constraints(
-                    enhanced_paragraphs, 
-                    word_limit, 
-                    paragraph_count
-                )
-                print(f"📊 After constraints: {len([p for p in enhanced_paragraphs if p.get('type') == 'paragraph'])} paragraphs")
-                
-                return {"paragraphs": enhanced_paragraphs}
-        
-        # Fallback: parse raw text into paragraphs
-        lines = [l.strip() for l in raw_output.split("\n") if l.strip()]
+        # Robust JSON Extraction
         enhanced_paragraphs = []
-        for line in lines:
-            if line.startswith(("🌱", "⚡", "🔥", "🧠", "📖")):
-                enhanced_paragraphs.append({"type": "header", "content": line, "enhanced": True})
-            else:
-                enhanced_paragraphs.append({"type": "paragraph", "content": line, "enhanced": True})
+        
+        # Strategy 1: Try to parse complete JSON first (best case)
+        json_match = re.search(r"\{[\s\S]*\}", raw_output)
+        if json_match:
+            try:
+                parsed = json.loads(json_match.group(0))
+                if "paragraphs" in parsed and isinstance(parsed["paragraphs"], list):
+                    for p in parsed["paragraphs"]:
+                        if isinstance(p, dict) and "content" in p:
+                            enhanced_paragraphs.append({
+                                "type": p.get("type", "paragraph"),
+                                "content": p.get("content", "").strip(),
+                                "enhanced": True
+                            })
+                    if enhanced_paragraphs:
+                        print(f"✅ Successfully parsed perfect JSON ({len(enhanced_paragraphs)} paragraphs)")
+            except:
+                pass
+        
+        # Strategy 2: If complete parse failed (or was empty), try regex extraction
+        # This handles truncated JSON where the closing brace is missing
+        if not enhanced_paragraphs:
+            print("⚠️ Perfect JSON parse failed/empty. Attempting dirty regex extraction...")
+            # Pattern matches {"type": "...", "content": "..."} across newlines
+            pattern = r'\{\s*"type"\s*:\s*"([^"]+)"\s*,\s*"content"\s*:\s*"(.*?)"\s*\}'
+            matches = re.finditer(pattern, raw_output, re.DOTALL)
+            
+            for m in matches:
+                p_type = m.group(1)
+                # Unescape quotes and newlines manually since we're regexing raw JSON string
+                p_content = m.group(2).replace('\\"', '"').replace('\\n', '\n').strip()
+                if p_content:
+                    enhanced_paragraphs.append({
+                        "type": p_type,
+                        "content": p_content,
+                        "enhanced": True
+                    })
+            
+            if enhanced_paragraphs:
+                print(f"✅ Recovered {len(enhanced_paragraphs)} paragraphs via regex")
+        
+        # Fallback: parse raw text into paragraphs if JSON parsing failed
+        if not enhanced_paragraphs:
+            print("⚠️ Parsing raw text as fallback")
+            lines = [l.strip() for l in raw_output.split("\n") if l.strip()]
+            # Filter out markdown code blocks markers
+            lines = [l for l in lines if not l.startswith("```")]
+            
+            for line in lines:
+                if line.startswith(("{", "}", "[", "]")):
+                    continue # Skip json artifacts
+                
+                if any(start in line for start in ["🌱", "⚡", "🔥", "🧠", "INTRODUCTION", "EPILOGUE"]):
+                    enhanced_paragraphs.append({"type": "header", "content": line, "enhanced": True})
+                elif len(line) > 20: # Filter out short noise
+                    enhanced_paragraphs.append({"type": "paragraph", "content": line, "enhanced": True})
+
         
         if not enhanced_paragraphs:
-            enhanced_paragraphs = [{"type": "paragraph", "content": "Story generation in progress...", "enhanced": True}]
+            print("⚠️ No paragraphs extracted from LLM response")
+            enhanced_paragraphs = [{"type": "paragraph", "content": "Story generation returned no content. Please try again.", "enhanced": True}]
         
-        # Enforce constraints even in fallback
-        enhanced_paragraphs = _enforce_constraints(enhanced_paragraphs, word_limit, paragraph_count)
+        # Post-process to enforce constraints but be generous to preserve the epilogue/content
+        # We only truncate if it's grossly over limit (e.g. 1.5x) to avoid cutting off the epilogue
+        print(f"📊 Before constraints: {len(enhanced_paragraphs)} items")
         
+        # Calculate current word count
+        current_words = _count_words(" ".join([p["content"] for p in enhanced_paragraphs if p.get("type") == "paragraph"]))
+        
+        if current_words > word_limit * 1.5:
+             enhanced_paragraphs = _enforce_constraints(
+                enhanced_paragraphs, 
+                word_limit, 
+                paragraph_count
+            )
+        else:
+             print(f"✨ Keeping story as is ({current_words} words), within acceptable margin of {word_limit}")
+                
         return {"paragraphs": enhanced_paragraphs}
         
     except requests.exceptions.Timeout:
@@ -413,8 +516,8 @@ async def generate_story(payload: StoryEnhancementRequest):
     tone = payload.tone if payload.tone is not None else STORY_STATE.get("tone", "neutral")
     pace = payload.pace if payload.pace is not None else STORY_STATE.get("pace", "moderate")
     mood = payload.mood if payload.mood is not None else STORY_STATE.get("mood", "neutral")
-    word_limit = payload.word_limit if payload.word_limit is not None else 500
-    paragraph_count = payload.paragraph_count if payload.paragraph_count is not None else 5
+    word_limit = payload.word_limit if payload.word_limit is not None else 800
+    paragraph_count = payload.paragraph_count if payload.paragraph_count is not None else 6
     
     print(f"🎯 Story generation params: tone={tone}, mood={mood}, pace={pace}, word_limit={word_limit}, paragraph_count={paragraph_count}")
     
@@ -431,6 +534,7 @@ async def generate_story(payload: StoryEnhancementRequest):
         STORY_STATE["paragraph_count"] = payload.paragraph_count
     
     if payload.enhance or payload.prompt:
+        print(f"🎨 REGENERATING STORY with tone={tone}, mood={mood}, pace={pace}")
         # Get base story for context
         base_story = STORY_RUNTIME.generate_full_story()
         
@@ -454,6 +558,17 @@ async def generate_story(payload: StoryEnhancementRequest):
         story_frame["paragraphs"] = enhanced_paragraphs
         story_frame["enhanced"] = True
         story_frame["enhanced_at"] = story_frame.get("meta", {}).get("current_frame", 0)
+        # Update meta with current parameters
+        story_frame["meta"] = {
+            **story_frame.get("meta", {}),
+            "tone": tone,
+            "mood": mood,
+            "pace": pace,
+            "word_limit": word_limit,
+            "paragraph_count": paragraph_count
+        }
+        
+        print(f"✅ Story regenerated: {len(enhanced_paragraphs)} paragraphs, tone={tone}, mood={mood}, pace={pace}")
         
         GLOBAL_STATE["story_frame"] = story_frame
         
@@ -468,46 +583,86 @@ async def generate_story(payload: StoryEnhancementRequest):
             "story": story_frame
         }
     else:
-        # Generate story with current settings, even if no events exist
-        # If no events, use LLM to generate an initial story based on tone/mood/pace
-        full_story = STORY_RUNTIME.generate_full_story()
-        
-        # If there are no events or the story is just the default message, generate with LLM
-        if not story_events or (full_story.get("paragraphs") and len(full_story["paragraphs"]) == 1 and "silence" in full_story["paragraphs"][0].get("content", "").lower()):
-            # Generate an initial story using LLM based on tone/mood/pace
-            print(f"📝 No events found, generating initial story with tone={tone}, mood={mood}, pace={pace}")
-            enhanced = enhance_story_with_llm(
-                [],  # No events
-                tone=tone,
-                pace=pace,
-                mood=mood,
-                word_limit=word_limit,
-                paragraph_count=paragraph_count,
-                user_prompt=None,
-                base_story=None
-            )
+        # User updated parameters (tone, mood, etc) but didn't request a re-write.
+        # Check if we already have an enhanced story.
+        current_frame = GLOBAL_STATE.get("story_frame", {})
+        if current_frame.get("enhanced") and current_frame.get("paragraphs"):
+            print(f"✨ Preserving existing enhanced story while updating metadata")
+            # Just update metadata in the existing frame
+            current_frame["meta"] = {
+                "tone": tone,
+                "pace": pace,
+                "mood": mood,
+                "total_events": len(story_events),
+                "current_frame": current_frame.get("meta", {}).get("current_frame", 0)
+            }
+            # Ensure GLOBAL_STATE is updated (it should be ref update, but good to be explicit)
+            GLOBAL_STATE["story_frame"] = current_frame
+        else:
+            # No enhanced story, or we want to update the algorithmic story
+            full_story = STORY_RUNTIME.generate_full_story()
             
-            enhanced_paragraphs = enhanced.get("paragraphs", [])
+            # If there are no events or the story is just the default message, generate with LLM
+            # (Only do this if we don't have ANY story yet)
+            # If there are no events or the story is just the default message, generate with LLM
+            # (Only do this if we don't have ANY story yet)
+            if not story_events and (not full_story.get("paragraphs") or len(full_story["paragraphs"]) <= 1):
+                print(f"📝 No events found, generating initial story with tone={tone}, mood={mood}, pace={pace}")
+                # Use LLM to generate an initial story based on tone/mood/pace
+                enhanced = enhance_story_with_llm(
+                    [],  # No events
+                    tone=tone,
+                    pace=pace,
+                    mood=mood,
+                    word_limit=word_limit,
+                    paragraph_count=paragraph_count,
+                    user_prompt=None,
+                    base_story=None
+                )
+                
+                enhanced_paragraphs = enhanced.get("paragraphs", [])
+                story_frame = GLOBAL_STATE.get("story_frame", {})
+                story_frame["paragraphs"] = enhanced_paragraphs
+                story_frame["enhanced"] = True
+                story_frame["story_events"] = story_events
+                story_frame["phase"] = "introduction"
+                story_frame["meta"] = {
+                    "tone": tone,
+                    "pace": pace,
+                    "mood": mood,
+                    "total_events": len(story_events),
+                    "current_frame": 0
+                }
+                GLOBAL_STATE["story_frame"] = story_frame
+                
+                # Return immediately as we've updated the state
+                try:
+                    await manager.broadcast(GLOBAL_STATE)
+                except Exception as e:
+                    print(f"⚠️ Could not broadcast story update: {e}")
+                
+                return {
+                    "status": "ok",
+                    "story": story_frame
+                } 
+            
+            # Update GLOBAL_STATE with the constrained story
+            paragraphs = full_story.get("paragraphs", [])
+            if not paragraphs:
+                # Fallback if algorithmic generation fails
+                paragraphs = [{"type": "paragraph", "content": "Waiting for events...", "enhanced": False}]
+                
             story_frame = GLOBAL_STATE.get("story_frame", {})
-            story_frame["paragraphs"] = enhanced_paragraphs
-            story_frame["enhanced"] = True
-            story_frame["story_events"] = story_events
-            story_frame["phase"] = "introduction"
+            story_frame["paragraphs"] = paragraphs
+            story_frame["story_events"] = full_story.get("story_events", [])
             story_frame["meta"] = {
                 "tone": tone,
                 "pace": pace,
                 "mood": mood,
                 "total_events": len(story_events),
-                "current_frame": 0
+                "current_frame": STORY_RUNTIME.current_frame
             }
             GLOBAL_STATE["story_frame"] = story_frame
-        else:
-            # Update GLOBAL_STATE with the constrained story
-            if full_story.get("paragraphs"):
-                story_frame = GLOBAL_STATE.get("story_frame", {})
-                story_frame["paragraphs"] = full_story["paragraphs"]
-                story_frame["story_events"] = full_story.get("story_events", [])
-                GLOBAL_STATE["story_frame"] = story_frame
         
         # Broadcast updated state via WebSocket
         try:

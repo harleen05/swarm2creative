@@ -30,9 +30,12 @@ def get_state():
     if music_frame:
         GLOBAL_STATE["music_frame"] = music_frame
     
-    story_frame = STORY_RUNTIME.step(events=[])
-    if story_frame:
-        GLOBAL_STATE["story_frame"] = story_frame
+    # Use existing story_frame from GLOBAL_STATE if available (set by frame_loop initialization)
+    # Otherwise generate a new one
+    if "story_frame" not in GLOBAL_STATE or not GLOBAL_STATE.get("story_frame"):
+        story_frame = STORY_RUNTIME.step(events=[])
+        if story_frame:
+            GLOBAL_STATE["story_frame"] = story_frame
 
     architecture_frame = ARCH_RUNTIME.step()
     if architecture_frame:

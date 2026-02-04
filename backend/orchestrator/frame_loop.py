@@ -34,6 +34,56 @@ def detect_collisions(agents_data):
     return events
 
 def frame_loop():
+    # Initialize story on startup - always provide SOMETHING
+    print("🚀 Initializing story on startup...")
+    
+    # Start with a guaranteed fallback
+    GLOBAL_STATE["story_frame"] = {
+        "paragraphs": [
+            {"type": "header", "content": "🌱 THE AWAKENING"},
+            {"type": "paragraph", "content": "In the depths of digital space, a swarm begins to stir. Autonomous agents, each with their own simple rules, start to move and interact. What emerges from their collective behavior is far greater than the sum of their parts."},
+            {"type": "paragraph", "content": "Watch as they create art through motion, compose music through harmony, design architecture through spatial relationships, and weave stories through their encounters. This is emergence in action."},
+            {"type": "paragraph", "content": "The journey begins now. Each agent follows its path, unaware of the greater patterns forming. Yet together, they paint, they sing, they build, they tell tales of digital life."}
+        ],
+        "meta": {
+            "tone": "neutral",
+            "mood": "hopeful",
+            "pace": "moderate",
+            "total_events": 0,
+            "current_frame": 0
+        },
+        "phase": "introduction",
+        "story_events": [],
+        "enhanced": False
+    }
+    print("✅ Fallback story initialized")
+    
+    # Try to enhance with LLM in background (non-blocking)
+    try:
+        from backend.api.story import enhance_story_with_llm
+        print("🤖 Attempting LLM enhancement...")
+        
+        enhanced = enhance_story_with_llm(
+            story_events=[],
+            tone="neutral",
+            pace="moderate", 
+            mood="hopeful",
+            word_limit=500,
+            paragraph_count=5,
+            user_prompt="Create an engaging introduction to a digital swarm simulation where autonomous agents create art, music, architecture, and stories through emergent behavior.",
+            base_story=None
+        )
+        
+        if enhanced and enhanced.get("paragraphs") and len(enhanced["paragraphs"]) > 2:
+            GLOBAL_STATE["story_frame"]["paragraphs"] = enhanced["paragraphs"]
+            GLOBAL_STATE["story_frame"]["enhanced"] = True
+            print(f"✅ LLM enhancement successful: {len(enhanced['paragraphs'])} paragraphs")
+        else:
+            print("⚠️ LLM returned insufficient content, keeping fallback")
+    except Exception as e:
+        print(f"⚠️ LLM enhancement failed: {e}")
+        print("✅ Using fallback story (this is fine!)")
+    
     while True:
         art_frame = ART_RUNTIME.get_frame()
         arch_frame = ARCHITECTURE_RUNTIME.step()
@@ -64,3 +114,4 @@ def frame_loop():
             pass
 
         time.sleep(1 / 30)
+

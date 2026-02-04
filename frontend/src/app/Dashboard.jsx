@@ -12,10 +12,10 @@ import ArchitecturePanel from "../panels/ArchitecturePanel";
 import ArchitectureCanvas from "../canvas/ArchitectureCanvas";
 import StoryPanel from "../panels/StoryPanel";
 import StoryCanvas from "../canvas/StoryCanvas";
-import {useBackendState} from "../hooks/useBackendState";
-import {useWebSocket} from "../hooks/useWebSocket";
+import { useBackendState } from "../hooks/useBackendState";
+import { useWebSocket } from "../hooks/useWebSocket";
 
-const CHORDS = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+const CHORDS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
 export default function Dashboard() {
   // Use WebSocket for real-time updates, fallback to REST API for initial state
@@ -33,8 +33,8 @@ export default function Dashboard() {
       liveNotesRef.current = state.music_frame.notes;
       hasNewNotesRef.current = true;
     }
-  }, [state?.music_frame]);  
-  
+  }, [state?.music_frame]);
+
   useEffect(() => {
     const interval = setInterval(() => {
       if (liveNotesRef.current.length > 0) {
@@ -42,41 +42,45 @@ export default function Dashboard() {
         hasNewNotesRef.current = false;
       }
     }, 180);
-  
+
     return () => clearInterval(interval);
-  }, []);   
+  }, []);
 
   useEffect(() => {
-    console.log("FULL WS STATE:", state);
+    // Console log removed for cleaner prod builds
   }, [state]);
-  
+
   return (
-    <div className="h-screen flex flex-col relative">
+    <div className="h-screen w-screen flex flex-col relative overflow-hidden">
       <TopBar />
 
-      <div className="flex flex-1 min-h-0 relative">
+      <div className="flex flex-1 min-h-0 relative overflow-hidden">
 
-        <div className="flex h-full flex-1 min-h-0">
-        <SmartDock
-          active={activePanel}
-          setActive={(panel) =>
-            setActivePanel(prev => (prev === panel ? null : panel))
-          }
-        />
-          <AnimatePresence mode="wait">
-            {activePanel === "art" && <ArtPanel key="art" />}
-            {activePanel === "music" && <MusicPanel key="music" />}
-            {activePanel === "architecture" && (
-              <ArchitecturePanel key="architecture" />
-            )}
-            {activePanel === "story" && (
-              <StoryPanel story={state?.story_frame} />
-            )}
-          </AnimatePresence>
+        {/* Left Section: Dock + Active Panel */}
+        <div className="flex h-full shrink-0 z-30 shadow-2xl shadow-black/20">
+          <SmartDock
+            active={activePanel}
+            setActive={(panel) =>
+              setActivePanel(prev => (prev === panel ? null : panel))
+            }
+          />
+          <div className="relative h-full">
+            <AnimatePresence mode="wait">
+              {activePanel === "art" && <ArtPanel key="art" />}
+              {activePanel === "music" && <MusicPanel key="music" />}
+              {activePanel === "architecture" && (
+                <ArchitecturePanel key="architecture" />
+              )}
+              {activePanel === "story" && (
+                <StoryPanel story={state?.story_frame} />
+              )}
+            </AnimatePresence>
+          </div>
         </div>
 
-        <div className="flex-1 flex items-center justify-center px-16 min-h-0">
-          <div className="relative" style={{ width: 800, height: 600 }}>
+        {/* Center: Canvas Area */}
+        <div className="flex-1 flex items-center justify-center p-6 lg:p-10 min-w-0 relative z-0">
+          <div className="relative w-full h-full max-w-7xl bg-glass-heavy rounded-[2rem] border border-white/10 shadow-2xl overflow-hidden backdrop-blur-2xl">
             {activePanel === "architecture" ? (
               <ArchitectureCanvas frame={state?.architecture ?? null} />
             ) : activePanel === "music" ? (
@@ -95,12 +99,14 @@ export default function Dashboard() {
 
             {activePanel === "music" &&
               state?.music_frame?.chord !== undefined && (
-                <div className="absolute top-4 right-6 text-sm opacity-70 bg-black/40 px-3 py-1 rounded-lg">
-                  Chord: {CHORDS[state.music_frame.chord]}
+                <div className="absolute top-6 right-8 text-sm font-medium text-white/80 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 shadow-lg">
+                  Chord: <span className="text-violet-300 ml-1 font-mono">{CHORDS[state.music_frame.chord]}</span>
                 </div>
               )}
           </div>
         </div>
+
+        {/* Right: Insight Panel */}
         <InsightPanel
           artMeta={state?.art_frame?.meta}
           architecture={state?.architecture}

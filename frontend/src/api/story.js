@@ -1,3 +1,5 @@
+import { API_BASE } from "../config/api";
+
 export async function getStory() {
   const res = await fetch(`${API_BASE}/story`, {
     method: "GET",

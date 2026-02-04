@@ -1,40 +1,112 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-html, body {
-  background: radial-gradient(circle at top, #2b1b4b, #05010a);
-  color: white;
+@theme {
+  /* Fonts */
+  --font-sans: 'Outfit', sans-serif;
+  --font-display: 'Syne', sans-serif;
+
+  /* Colors */
+  --color-glass: rgba(255, 255, 255, 0.08);
+  --color-glass-heavy: rgba(10, 10, 20, 0.75);
+  --color-glow: #9f7aea;
+  --color-surface: #1a0b2e;
+  --color-primary: #7c3aed;
+  --color-secondary: #ec4899;
+  /* Animations */
+  --animate-aurora: aurora 30s ease infinite;
+
+  @keyframes aurora {
+    0% {
+      background-position: 0% 50%;
+    }
+
+    50% {
+      background-position: 100% 50%;
+    }
+
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+}
+
+/* Custom Utilities (Native CSS) */
+:root {
+  --background: #0a0118;
+  --surface: #1a0b2e;
+  --primary: #7c3aed;
+  --secondary: #ec4899;
+  --glass-border: rgba(255, 255, 255, 0.08);
+}
+
+body {
   margin: 0;
   padding: 0;
-  min-height: 100%;
+  min-height: 100vh;
+  /* Aurora Gradient Background */
+  background:
+    radial-gradient(at 0% 0%, hsla(253, 16%, 7%, 1) 0, transparent 50%),
+    radial-gradient(at 50% 0%, hsla(225, 39%, 30%, 1) 0, transparent 50%),
+    radial-gradient(at 100% 0%, hsla(339, 49%, 30%, 1) 0, transparent 50%),
+    radial-gradient(at 0% 100%, hsla(253, 16%, 7%, 1) 0, transparent 50%),
+    radial-gradient(at 50% 100%, hsla(242, 47%, 30%, 1) 0, transparent 50%),
+    radial-gradient(at 100% 100%, hsla(339, 49%, 30%, 1) 0, transparent 50%);
+  background-size: 200% 200%;
+  animation: aurora 30s ease infinite;
+  /* Fallback using raw CSS animation property if --animate-aurora doesn't bind automatically in body */
+  color: #3788d8;
+  font-family: var(--font-sans);
+  overflow: hidden;
 }
 
-/* Buttons: modern white fill with neon purple outline */
-button {
-  font-family: "Plus Jakarta Sans", system-ui, sans-serif !important;
-  font-weight: 600 !important;
-  letter-spacing: 0.02em !important;
-  background-color: #fff !important;
-  color: #0f0f0f !important;
-  border: 2px solid #bf5af2 !important;
-  border-radius: 0 !important;
-  box-shadow: 0 0 12px rgba(191, 90, 242, 0.5), 0 1px 2px rgba(0, 0, 0, 0.05);
-  transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+/* Typography Overrides */
+h1,
+h2,
+h3,
+h4,
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
 }
-button:hover:not(:disabled) {
-  background-color: #f8f8f8 !important;
-  box-shadow: 0 0 20px rgba(191, 90, 242, 0.6), 0 2px 8px rgba(0, 0, 0, 0.08);
-  transform: translateY(-1px);
+
+/* Premium Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
 }
-button:active:not(:disabled) {
-  transform: translateY(0);
-  box-shadow: 0 0 14px rgba(191, 90, 242, 0.5), 0 1px 2px rgba(0, 0, 0, 0.06);
+
+::-webkit-scrollbar-track {
+  background: transparent;
 }
-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
 }
-button svg {
-  color: #0f0f0f !important;
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Glassmorphism Utilities */
+.bg-glass {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+}
+
+.bg-glass-heavy {
+  background: var(--color-glass-heavy);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.text-gradient {
+  background: linear-gradient(to right, #c084fc, #e879f9);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }

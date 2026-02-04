@@ -1,318 +1,219 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { generateStory } from "../api/story";
-import { sendIntent } from "../api/interpret";
+import { generateStory, getStory } from "../api/story";
+import { BookOpen, Sparkles, Zap } from "lucide-react";
+
+// --- Styled Components ---
+
+const ControlGroup = ({ label, children }) => (
+  <div className="mb-8 relative z-10">
+    <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-purple-200/50 mb-4 ml-1 font-sans">
+      {label}
+    </div>
+    <div className="space-y-3">
+      {children}
+    </div>
+  </div>
+);
+
+const SelectButton = ({ label, active, onClick }) => (
+  <motion.button
+    whileHover={{ scale: 1.02, backgroundColor: active ? "rgba(168, 85, 247, 0.3)" : "rgba(255, 255, 255, 0.08)" }}
+    whileTap={{ scale: 0.98 }}
+    onClick={onClick}
+    className={`w-full text-left px-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-300 border backdrop-blur-md relative overflow-hidden group ${active
+      ? "bg-purple-500/20 border-purple-400/40 text-white shadow-[0_0_20px_rgba(168,85,247,0.15)]"
+      : "bg-white/5 border-white/5 text-purple-200/60 hover:border-purple-500/20"}`}
+  >
+    {active && (
+      <motion.div
+        layoutId="activeGlow"
+        className="absolute inset-0 bg-purple-500/10"
+        initial={false}
+        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+      />
+    )}
+    <span className="relative z-10">{label}</span>
+  </motion.button>
+);
+
+const RangeSlider = ({ value, min, max, step, onChange, label, suffix = "" }) => (
+  <div className="bg-white/5 rounded-2xl p-5 border border-white/5 hover:border-white/10 transition-colors group">
+    <div className="flex justify-between text-xs mb-4">
+      <span className="text-purple-200/60 font-medium group-hover:text-purple-200/80 transition-colors">{label}</span>
+      <span className="text-white font-mono bg-white/10 px-2 py-1 rounded-md text-[10px] min-w-[3rem] text-center">{value}{suffix}</span>
+    </div>
+    <div className="relative h-2 w-full">
+      <div className="absolute inset-0 bg-white/10 rounded-full overflow-hidden">
+        <div
+          className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"
+          style={{ width: `${((value - min) / (max - min)) * 100}%` }}
+        />
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={onChange}
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+      />
+      <div
+        className="absolute top-1/2 -ml-2 -mt-2 w-4 h-4 bg-white rounded-full shadow-lg pointer-events-none transform scale-0 group-hover:scale-100 transition-transform duration-200"
+        style={{ left: `${((value - min) / (max - min)) * 100}%` }}
+      />
+    </div>
+  </div>
+);
 
 export default function StoryPanel({ story }) {
-    const [enhancing, setEnhancing] = useState(false);
-    const [tone, setTone] = useState("neutral");
-    const [mood, setMood] = useState("neutral");
-    const [pace, setPace] = useState("moderate");
-    const [wordLimit, setWordLimit] = useState(500);
-    const [paragraphCount, setParagraphCount] = useState(5);
-    
-    if (!story) {
-      return (
-        <motion.div
-          initial={{ x: -40, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          exit={{ x: -40, opacity: 0 }}
-          transition={{ duration: 0.25, ease: "easeOut" }}
-          className="h-full w-[360px] bg-glass backdrop-blur-2xl border-r border-white/10 px-6 py-8"
-        >
-          <div className="text-sm text-white/60">
-            No story data available
-          </div>
-        </motion.div>
-      );
+  const [currentStory, setCurrentStory] = useState(story);
+  const [enhancing, setEnhancing] = useState(false);
+  const [tone, setTone] = useState("dramatic");
+  const [mood, setMood] = useState("hopeful");
+  const [pace, setPace] = useState("moderate");
+  const [wordLimit, setWordLimit] = useState(800);
+  const [paragraphCount, setParagraphCount] = useState(6);
+
+  useEffect(() => {
+    if (story?.meta) {
+      if (story.meta.tone) setTone(story.meta.tone);
+      if (story.meta.mood) setMood(story.meta.mood);
+      if (story.meta.pace) setPace(story.meta.pace);
     }
-  
-    const meta = story.meta || {};
-    const events = story.story_events || [];
-    const updateTimeoutRef = useRef(null);
-  
-    const handleEnhance = async () => {
-      setEnhancing(true);
-      try {
-        await generateStory(null, true, {
-          tone,
-          mood,
-          pace,
-          wordLimit,
-          paragraphCount
-        });
-        // Story will update via websocket
-      } catch (error) {
-        console.error("Failed to enhance story:", error);
-      } finally {
-        setEnhancing(false);
-      }
-    };
+  }, [story?.meta]);
 
-    // Auto-update story when word limit or paragraph count changes (debounced)
-    useEffect(() => {
-      if (updateTimeoutRef.current) {
-        clearTimeout(updateTimeoutRef.current);
-      }
-      
-      // Only update if there are story events (story exists)
-      if (events.length > 0) {
-        updateTimeoutRef.current = setTimeout(async () => {
-          try {
-            // Update story with new constraints (without LLM enhancement)
-            await generateStory(null, false, {
-              tone,
-              mood,
-              pace,
-              wordLimit,
-              paragraphCount
-            });
-          } catch (error) {
-            console.error("Failed to update story constraints:", error);
-          }
-        }, 1000); // 1 second debounce
-      }
-      
-      return () => {
-        if (updateTimeoutRef.current) {
-          clearTimeout(updateTimeoutRef.current);
-        }
-      };
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [wordLimit, paragraphCount]); // Only trigger on these changes
+  if (!currentStory) return null;
 
-    const updateTone = async (newTone) => {
-      setTone(newTone);
-      sendIntent({
-        story: {
-          tone: { value: newTone, confidence: 0.9 }
-        }
-      });
-      // Generate story with new tone
-      try {
-        await generateStory(null, false, {
-          tone: newTone,
-          mood,
-          pace,
-          wordLimit,
-          paragraphCount
-        });
-      } catch (error) {
-        console.error("Failed to generate story with new tone:", error);
-      }
-    };
+  const updateTimeoutRef = useRef(null);
 
-    const updatePace = async (newPace) => {
-      setPace(newPace);
-      sendIntent({
-        story: {
-          pace_shift: { value: newPace, confidence: 0.9 }
-        }
-      });
-      // Generate story with new pace
-      try {
-        await generateStory(null, false, {
-          tone,
-          mood,
-          pace: newPace,
-          wordLimit,
-          paragraphCount
-        });
-      } catch (error) {
-        console.error("Failed to generate story with new pace:", error);
-      }
-    };
-  
-    return (
-      <motion.div
-        initial={{ x: -40, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        exit={{ x: -40, opacity: 0 }}
-        transition={{ duration: 0.25, ease: "easeOut" }}
-        className="h-full w-[360px] bg-glass backdrop-blur-2xl border-r border-white/10 px-6 py-8 overflow-y-auto"
-      >
-        {/* Header */}
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold">Story Studio</h2>
-          <p className="text-sm opacity-60">
-            Tone, mood, pace & generation
+  const handleEnhance = async () => {
+    setEnhancing(true);
+    try {
+      await generateStory(null, true, { tone, mood, pace, wordLimit, paragraphCount });
+      const updated = await getStory();
+      setCurrentStory(updated);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setEnhancing(false);
+    }
+  };
+
+  useEffect(() => {
+    // Manual regeneration only
+    if (updateTimeoutRef.current) {
+      clearTimeout(updateTimeoutRef.current);
+    }
+  }, [wordLimit, paragraphCount, tone, mood, pace]);
+
+  return (
+    <motion.div
+      initial={{ x: -20, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: -20, opacity: 0 }}
+      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      className="h-full flex flex-col bg-glass-heavy border-r border-white/5 relative z-20"
+    >
+      {/* Aurora Header */}
+      <div className="p-8 pb-6 border-b border-white/5 relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-8 opacity-20 pointer-events-none">
+          <BookOpen className="text-purple-400 rotate-12" size={80} />
+        </div>
+
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-purple-500/20 rounded-lg backdrop-blur-md border border-purple-500/20">
+              <BookOpen className="text-purple-300" size={18} />
+            </div>
+            <h2 className="text-2xl font-bold font-display tracking-tight bg-gradient-to-br from-white via-white to-purple-200 bg-clip-text text-transparent">
+              Story Engine
+            </h2>
+          </div>
+          <p className="text-[10px] text-purple-300/50 uppercase tracking-[0.2em] font-bold ml-1">
+            Artistic Intelligence v2.5
           </p>
         </div>
+      </div>
 
-        {/* Current Status */}
-        <div className="mb-6 p-3 bg-white/5 rounded-lg">
-          <div className="text-xs uppercase tracking-wider opacity-60 mb-2">Current Status</div>
-          <div className="text-sm space-y-1">
-            <div className="opacity-70">
-              Phase: <span className="capitalize text-white">{story.phase?.replace("_", " ") || "introduction"}</span>
-            </div>
-            {meta.total_events !== undefined && (
-              <div className="opacity-70">Events: {meta.total_events}</div>
-            )}
-          </div>
-        </div>
+      {/* Constraints & Controls */}
+      <div className="flex-1 overflow-y-auto p-8 space-y-8 no-scrollbar mask-gradient">
 
-        {/* Tone Selection */}
-        <section className="mb-6">
-          <div className="text-xs uppercase tracking-wider opacity-60 mb-3">
-            Tone
+        <ControlGroup label="Narrative Style">
+          <div className="grid grid-cols-1 gap-2">
+            {["Dramatic", "Poetic", "Mysterious"].map(t => (
+              <SelectButton key={t} label={t} active={tone === t.toLowerCase()} onClick={() => setTone(t.toLowerCase())} />
+            ))}
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { label: "Neutral", value: "neutral" },
-              { label: "Dramatic", value: "dramatic" },
-              { label: "Poetic", value: "poetic" },
-              { label: "Mysterious", value: "mysterious" },
-              { label: "Epic", value: "epic" },
-              { label: "Intimate", value: "intimate" }
-            ].map(t => (
+        </ControlGroup>
+
+        <ControlGroup label="Emotional Resonance">
+          <div className="grid grid-cols-1 gap-2">
+            {["Hopeful", "Tense", "Melancholic"].map(m => (
+              <SelectButton key={m} label={m} active={mood === m.toLowerCase()} onClick={() => setMood(m.toLowerCase())} />
+            ))}
+          </div>
+        </ControlGroup>
+
+        <ControlGroup label="Pacing & Flow">
+          <div className="bg-white/5 p-1.5 rounded-2xl flex gap-1 border border-white/5 backdrop-blur-sm">
+            {["Slow", "Moderate", "Fast"].map(p => (
               <button
-                key={t.value}
-                onClick={() => updateTone(t.value)}
-                className={`py-2 rounded-lg text-sm transition ${
-                  tone === t.value
-                    ? "bg-blue-500/30 border border-blue-400/50"
-                    : "bg-white/10 hover:bg-white/20"
-                }`}
+                key={p}
+                onClick={() => setPace(p.toLowerCase())}
+                className={`flex-1 py-3 rounded-xl text-xs font-medium transition-all duration-300 relative ${pace === p.toLowerCase()
+                    ? "text-white shadow-lg"
+                    : "text-purple-200/40 hover:text-white"
+                  }`}
               >
-                {t.label}
+                {pace === p.toLowerCase() && (
+                  <motion.div
+                    layoutId="paceActive"
+                    className="absolute inset-0 bg-purple-500/20 rounded-xl border border-purple-500/30"
+                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                  />
+                )}
+                <span className="relative z-10">{p}</span>
               </button>
             ))}
           </div>
-        </section>
+        </ControlGroup>
 
-        {/* Mood Selection */}
-        <section className="mb-6">
-          <div className="text-xs uppercase tracking-wider opacity-60 mb-3">
-            Mood
+        <ControlGroup label="Constraints">
+          <div className="space-y-4">
+            <RangeSlider
+              label="Word Count"
+              value={wordLimit}
+              min={200} max={2000} step={50}
+              onChange={(e) => setWordLimit(Number(e.target.value))}
+            />
+            <RangeSlider
+              label="Paragraphs"
+              value={paragraphCount}
+              min={3} max={10} step={1}
+              onChange={(e) => setParagraphCount(Number(e.target.value))}
+            />
           </div>
-          <div className="flex flex-wrap gap-2">
-            {[
-              { label: "Neutral", value: "neutral" },
-              { label: "Hopeful", value: "hopeful" },
-              { label: "Melancholic", value: "melancholic" },
-              { label: "Tense", value: "tense" },
-              { label: "Triumphant", value: "triumphant" },
-              { label: "Somber", value: "somber" }
-            ].map(m => (
-              <button
-                key={m.value}
-                onClick={() => setMood(m.value)}
-                className={`px-3 py-2 rounded-full text-sm transition ${
-                  mood === m.value
-                    ? "bg-purple-500/30 border border-purple-400/50"
-                    : "bg-white/10 hover:bg-white/20"
-                }`}
-              >
-                {m.label}
-              </button>
-            ))}
-          </div>
-        </section>
+        </ControlGroup>
 
-        {/* Pace Selection */}
-        <section className="mb-6">
-          <div className="text-xs uppercase tracking-wider opacity-60 mb-3">
-            Pace
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { label: "Slow", value: "slow" },
-              { label: "Moderate", value: "moderate" },
-              { label: "Fast", value: "fast" }
-            ].map(p => (
-              <button
-                key={p.value}
-                onClick={() => updatePace(p.value)}
-                className={`py-2 rounded-lg text-sm transition ${
-                  pace === p.value
-                    ? "bg-green-500/30 border border-green-400/50"
-                    : "bg-white/10 hover:bg-white/20"
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </section>
+      </div>
 
-        {/* Word Limit */}
-        <section className="mb-6">
-          <div className="text-xs uppercase tracking-wider opacity-60 mb-3">
-            Word Limit: {wordLimit}
-          </div>
-          <input
-            type="range"
-            min={200}
-            max={2000}
-            step={50}
-            value={wordLimit}
-            onChange={(e) => setWordLimit(Number(e.target.value))}
-            className="w-full"
-          />
-          <div className="flex justify-between text-xs opacity-50 mt-1">
-            <span>200</span>
-            <span>2000</span>
-          </div>
-        </section>
+      {/* Footer Action */}
+      <div className="p-8 border-t border-white/5 bg-gradient-to-t from-black/40 to-transparent backdrop-blur-xl">
+        <motion.button
+          whileHover={{ scale: 1.02, boxShadow: "0 0 40px rgba(168,85,247,0.3)" }}
+          whileTap={{ scale: 0.96 }}
+          onClick={handleEnhance}
+          disabled={enhancing}
+          className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-purple-600 via-fuchsia-500 to-pink-500 text-white px-6 py-4 rounded-2xl text-sm font-bold tracking-wide transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-purple-500/20 border border-white/10 group overflow-hidden relative"
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+          {enhancing ? <Zap size={18} className="animate-spin text-yellow-300" /> : <Sparkles size={18} className="text-yellow-200" />}
+          <span className="relative z-10">{enhancing ? "Weaving Narrative..." : "Regenerate Story"}</span>
+        </motion.button>
+      </div>
 
-        {/* Paragraph Count */}
-        <section className="mb-6">
-          <div className="text-xs uppercase tracking-wider opacity-60 mb-3">
-            Paragraphs: {paragraphCount}
-          </div>
-          <input
-            type="range"
-            min={3}
-            max={10}
-            step={1}
-            value={paragraphCount}
-            onChange={(e) => setParagraphCount(Number(e.target.value))}
-            className="w-full"
-          />
-          <div className="flex justify-between text-xs opacity-50 mt-1">
-            <span>3</span>
-            <span>10</span>
-          </div>
-        </section>
-
-        {/* Enhance Button */}
-        {events.length > 0 && (
-          <section className="mb-6">
-            <button
-              onClick={handleEnhance}
-              disabled={enhancing}
-              className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:opacity-50 rounded-lg text-white text-sm font-medium transition-colors"
-            >
-              {enhancing ? "Enhancing..." : "✨ Enhance with LLM"}
-            </button>
-          </section>
-        )}
-
-        {/* Recent Events */}
-        <section>
-          <div className="text-xs uppercase tracking-wider opacity-60 mb-3">
-            Recent Events
-          </div>
-          <div className="space-y-1 max-h-48 overflow-y-auto">
-            {events.length === 0 ? (
-              <div className="opacity-50 italic text-sm">No events yet</div>
-            ) : (
-              events.map((e, i) => (
-                <div key={i} className="opacity-80 border-l-2 border-white/20 pl-2 py-1 text-sm">
-                  <span className="capitalize">{e.story_type}</span>
-                  {e.agents && (
-                    <span className="opacity-60"> • Agents {e.agents.join(", ")}</span>
-                  )}
-                  {e.intensity && (
-                    <span className="opacity-50 text-xs"> (intensity: {e.intensity})</span>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </section>
-      </motion.div>
-    );
-  }
-  
+    </motion.div>
+  );
+}

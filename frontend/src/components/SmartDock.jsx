@@ -1,4 +1,4 @@
-import { Palette, Music, Building, Book, MessageCircle } from "lucide-react";
+import { Palette, Music, Building, Book } from "lucide-react";
 
 const items = [
   { id: "art", icon: Palette },
@@ -9,20 +9,22 @@ const items = [
 
 export default function SmartDock({ active, setActive }) {
   return (
-    <div className="w-16 min-h-full flex flex-col items-center gap-4 pt-2 pb-4 px-2 bg-glass backdrop-blur-xl border-r border-white/10 shrink-0 self-stretch">
-      {items.map(({ id, icon: Icon }) => (
-        <button
-          key={id}
-          onClick={() => setActive(active === id ? null : id)}
-          className={`p-3 rounded-xl transition-all duration-200 ${
-            active === id
-              ? "bg-white/20 shadow-[0_0_12px_rgba(160,120,255,0.6)]"
-              : "hover:bg-white/10"
-          }`}          
-        >
-          <Icon className="w-5 h-5 text-white/80" />
-        </button>
-      ))}
+    <div className="w-20 h-full flex flex-col items-center gap-4 pt-8 pb-4 bg-glass backdrop-blur-xl border-r border-purple-500/20 shrink-0">
+      {items.map(({ id, icon: Icon }) => {
+        const isActive = active === id;
+        return (
+          <button
+            key={id}
+            onClick={() => setActive(isActive ? null : id)}
+            className={`p-3.5 rounded-xl transition-all duration-200 ${isActive
+                ? "bg-gradient-to-br from-purple-500 to-pink-500 shadow-lg shadow-purple-500/50 text-white scale-110"
+                : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white hover:scale-105"
+              }`}
+          >
+            <Icon strokeWidth={isActive ? 2.5 : 2} className="w-6 h-6" />
+          </button>
+        );
+      })}
     </div>
   );
 }

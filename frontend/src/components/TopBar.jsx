@@ -1,39 +1,30 @@
 import PromptBar from "./PromptBar";
 
+
 export default function TopBar() {
   return (
-    <header className="bg-glass backdrop-blur-xl border-b border-white/10 shrink-0">
-      <div className="min-h-[36px] flex items-center gap-5 px-3 py-1.5">
-        <h1
-          className="font-semibold select-none shrink-0"
-          style={{
-            fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif',
-            fontSize: "20px",
-            textShadow: [
-              "0 0 18px rgba(191, 90, 242, 0.75)",
-              "0 0 36px rgba(191, 90, 242, 0.45)",
-              "0 0 54px rgba(191, 90, 242, 0.25)",
-              "0 1px 3px rgba(0, 0, 0, 0.3)"
-            ].join(", "),
-            letterSpacing: "-0.015em"
-          }}
-        >
+    <header className="h-[72px] bg-glass backdrop-blur-xl border-b border-white/10 shrink-0 z-40 relative">
+      <div className="h-full flex items-center justify-between px-6 gap-8">
+
+        {/* Logo */}
+        <h1 className="text-2xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-purple-300 via-pink-300 to-cyan-300 shrink-0">
           Swarm2Creative
         </h1>
 
-        <div className="flex-1 flex items-center min-w-0 max-w-xl ml-6">
+        {/* Prompt Input */}
+        <div className="flex-1 max-w-2xl">
           <PromptBar inline />
         </div>
 
-        <div className="flex items-center gap-3 flex-nowrap shrink-0">
-          <button className="px-4 py-2 min-h-[40px] flex items-center justify-center whitespace-nowrap">
-            Save
-          </button>
-          <button className="px-4 py-2 min-h-[40px] flex items-center justify-center whitespace-nowrap">
-            Export
-          </button>
-          <div className="w-8 h-8 rounded-full bg-glow/60 shrink-0" />
+        {/* Actions */}
+        <div className="flex items-center gap-3 shrink-0">
+
+
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 p-0.5 ml-2 shadow-[0_0_15px_rgba(236,72,153,0.3)]">
+            <div className="w-full h-full rounded-full bg-black/50 backdrop-blur-sm" />
+          </div>
         </div>
+
       </div>
     </header>
   );
