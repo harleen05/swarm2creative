@@ -9,7 +9,7 @@ const items = [
 
 export default function SmartDock({ active, setActive }) {
   return (
-    <div className="w-16 h-full flex flex-col items-center gap-8 py-8 bg-glass backdrop-blur-xl border-r border-white/10">
+    <div className="w-16 min-h-full flex flex-col items-center gap-4 pt-2 pb-4 px-2 bg-glass backdrop-blur-xl border-r border-white/10 shrink-0 self-stretch">
       {items.map(({ id, icon: Icon }) => (
         <button
           key={id}

@@ -7,7 +7,6 @@ import MusicCanvas from "../canvas/MusicCanvas";
 import ArtPanel from "../panels/ArtPanel";
 import MusicPanel from "../panels/MusicPanel";
 import { AnimatePresence } from "framer-motion";
-import PromptBar from "../components/PromptBar";
 import { playNotes } from "../audio/MusicEngine";
 import ArchitecturePanel from "../panels/ArchitecturePanel";
 import ArchitectureCanvas from "../canvas/ArchitectureCanvas";
@@ -55,9 +54,9 @@ export default function Dashboard() {
     <div className="h-screen flex flex-col relative">
       <TopBar />
 
-      <div className="flex flex-1 overflow-hidden relative">
+      <div className="flex flex-1 min-h-0 relative">
 
-        <div className="flex h-full">
+        <div className="flex h-full flex-1 min-h-0">
         <SmartDock
           active={activePanel}
           setActive={(panel) =>
@@ -76,7 +75,7 @@ export default function Dashboard() {
           </AnimatePresence>
         </div>
 
-        <div className="flex-1 flex items-center justify-center px-16">
+        <div className="flex-1 flex items-center justify-center px-16 min-h-0">
           <div className="relative" style={{ width: 800, height: 600 }}>
             {activePanel === "architecture" ? (
               <ArchitectureCanvas frame={state?.architecture ?? null} />
@@ -108,7 +107,6 @@ export default function Dashboard() {
           musicFrame={state?.music_frame}
         />
       </div>
-      <PromptBar />
     </div>
   );
 }
